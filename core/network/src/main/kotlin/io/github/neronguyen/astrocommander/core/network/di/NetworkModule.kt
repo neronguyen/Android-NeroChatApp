@@ -9,8 +9,6 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import io.github.neronguyen.astrocommander.core.network.AscomNetworkDataSource
-import io.github.neronguyen.astrocommander.core.network.retrofit.RetrofitAscomNetworkClient
 import jakarta.inject.Singleton
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
@@ -20,18 +18,6 @@ import kotlin.time.Duration.Companion.seconds
 @Module
 @InstallIn(SingletonComponent::class)
 internal object NetworkModule {
-
-    @Provides
-    @Singleton
-    fun provideNetworkDataSource(
-        okHttpClient: OkHttpClient,
-        networkJson: Json
-    ): AscomNetworkDataSource {
-        return RetrofitAscomNetworkClient(
-            okHttpClient = okHttpClient,
-            networkJson = networkJson
-        )
-    }
 
     @Provides
     @Singleton
