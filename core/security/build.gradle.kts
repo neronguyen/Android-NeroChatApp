@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "io.github.neronguyen.chat.core.data"
+    namespace = "io.github.neronguyen.chat.core.security"
     compileSdk {
         version = release(37) {
             minorApiLevel = 0
@@ -29,19 +29,7 @@ kotlin {
 }
 
 dependencies {
-    implementation(projects.core.model)
-    implementation(projects.core.network)
-    implementation(projects.core.datastore)
-    implementation(projects.core.database)
-
-    // Arrow
-    implementation(libs.arrow.core)
-
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
-
-    // Unit Testing
-    testImplementation(libs.kotlin.test.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
 }

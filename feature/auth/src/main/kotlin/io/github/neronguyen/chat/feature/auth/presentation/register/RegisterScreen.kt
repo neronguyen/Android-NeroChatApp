@@ -1,0 +1,154 @@
+package io.github.neronguyen.chat.feature.auth.presentation.register
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.neronguyen.chat.core.ui.asUiText
+import io.github.neronguyen.chat.feature.auth.R
+import io.github.neronguyen.chat.feature.auth.presentation.util.asUiText
+
+@Composable
+fun RegisterRoute(
+    viewModel: RegisterViewModel,
+    onNavigateToLogin: () -> Unit,
+    onRegisterSuccess: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    if (uiState.isSuccess) {
+        onRegisterSuccess()
+    }
+
+    RegisterScreen(
+        emailState = viewModel.emailState,
+        displayNameState = viewModel.displayNameState,
+        passwordState = viewModel.passwordState,
+        uiState = uiState,
+        onEvent = viewModel::onEvent,
+        onNavigateToLogin = onNavigateToLogin,
+        modifier = modifier
+    )
+}
+
+@Composable
+fun RegisterScreen(
+    emailState: TextFieldState,
+    displayNameState: TextFieldState,
+    passwordState: TextFieldState,
+    uiState: RegisterUiState,
+    onEvent: (RegisterUiEvent) -> Unit,
+    onNavigateToLogin: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = stringResource(R.string.create_account),
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        OutlinedTextField(
+            state = emailState,
+            label = { Text(stringResource(R.string.email)) },
+            lineLimits = TextFieldLineLimits.SingleLine,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Email,
+                imeAction = ImeAction.Next
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            state = displayNameState,
+            label = { Text(stringResource(R.string.display_name)) },
+            lineLimits = TextFieldLineLimits.SingleLine,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Text,
+                imeAction = ImeAction.Next
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            state = passwordState,
+            label = { Text(stringResource(R.string.password)) },
+            lineLimits = TextFieldLineLimits.SingleLine,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Password,
+                imeAction = ImeAction.Done
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        uiState.validationError?.let { error ->
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = error.asUiText(),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        uiState.dataError?.let { error ->
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = error.asUiText(),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        if (uiState.isLoading) {
+            CircularProgressIndicator()
+        } else {
+            Button(
+                onClick = { onEvent(RegisterUiEvent.Register) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.register))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        TextButton(onClick = onNavigateToLogin) {
+            Text(stringResource(R.string.already_have_account))
+        }
+    }
+}

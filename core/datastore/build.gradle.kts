@@ -1,11 +1,12 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
 }
 
 android {
-    namespace = "io.github.neronguyen.chat.core.data"
+    namespace = "io.github.neronguyen.chat.core.datastore"
     compileSdk {
         version = release(37) {
             minorApiLevel = 0
@@ -30,18 +31,15 @@ kotlin {
 
 dependencies {
     implementation(projects.core.model)
-    implementation(projects.core.network)
-    implementation(projects.core.datastore)
-    implementation(projects.core.database)
+    implementation(projects.core.security)
 
-    // Arrow
-    implementation(libs.arrow.core)
+    // AndroidX DataStore
+    implementation(libs.androidx.datastore.preferences)
 
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
-    // Unit Testing
-    testImplementation(libs.kotlin.test.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
+    // KotlinX Serialization
+    implementation(libs.kotlinx.serialization.json)
 }

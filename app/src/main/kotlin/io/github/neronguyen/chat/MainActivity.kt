@@ -7,9 +7,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import dagger.hilt.android.AndroidEntryPoint
+import io.github.neronguyen.chat.feature.auth.presentation.navigation.AuthNavGraph
 import io.github.neronguyen.chat.ui.theme.ChatTheme
 
 @AndroidEntryPoint
@@ -21,8 +21,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             ChatTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Text(
-                        text = "Chat",
+                    AuthNavGraph(
+                        onAuthSuccess = {
+                            // Auth successful callback
+                        },
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
