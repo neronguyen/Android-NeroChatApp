@@ -1,4 +1,4 @@
-package io.github.neronguyen.astrocommander.ui.theme
+package io.github.neronguyen.chat.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

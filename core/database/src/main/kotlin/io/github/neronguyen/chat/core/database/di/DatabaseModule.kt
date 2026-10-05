@@ -1,4 +1,4 @@
-package io.github.neronguyen.astrocommander.core.data.di
+package io.github.neronguyen.chat.core.database.di
 
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -6,4 +6,4 @@ import dagger.hilt.components.SingletonComponent
 
 @Module
 @InstallIn(SingletonComponent::class)
-interface DataModule
+internal object DatabaseModule

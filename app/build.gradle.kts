@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "io.github.neronguyen.astrocommander"
+    namespace = "io.github.neronguyen.chat"
     compileSdk {
         version = release(37) {
             minorApiLevel = 0
@@ -15,7 +15,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "io.github.neronguyen.astrocommander"
+        applicationId = "io.github.neronguyen.chat"
         minSdk = 26
         targetSdk = 37
         versionCode = 1

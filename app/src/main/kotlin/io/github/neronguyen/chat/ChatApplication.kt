@@ -1,4 +1,4 @@
-package io.github.neronguyen.astrocommander
+package io.github.neronguyen.chat
 
 import android.app.Application
 import android.content.Context
@@ -10,7 +10,7 @@ import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
 @HiltAndroidApp
-class AscomApplication : Application(), Configuration.Provider, SingletonImageLoader.Factory {
+class ChatApplication : Application(), Configuration.Provider, SingletonImageLoader.Factory {
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory

@@ -1,4 +1,4 @@
-package io.github.neronguyen.astrocommander.core.network.di
+package io.github.neronguyen.chat.core.network.di
 
 import android.content.Context
 import coil3.ImageLoader

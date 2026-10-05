@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "io.github.neronguyen.astrocommander.core.data"
+    namespace = "io.github.neronguyen.chat.core.data"
     compileSdk {
         version = release(37) {
             minorApiLevel = 0

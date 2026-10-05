@@ -1,4 +1,4 @@
-package io.github.neronguyen.astrocommander.core.model.error
+package io.github.neronguyen.chat.core.model.error
 
 sealed interface DataError {
 

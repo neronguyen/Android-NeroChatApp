@@ -1,4 +1,4 @@
-package io.github.neronguyen.astrocommander
+package io.github.neronguyen.chat
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -10,7 +10,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import dagger.hilt.android.AndroidEntryPoint
-import io.github.neronguyen.astrocommander.ui.theme.AstroCommanderTheme
+import io.github.neronguyen.chat.ui.theme.ChatTheme
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -19,10 +19,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            AstroCommanderTheme {
+            ChatTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Text(
-                        text = "AstroCommander",
+                        text = "Chat",
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
