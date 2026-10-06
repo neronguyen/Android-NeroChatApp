@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.hilt)
@@ -15,11 +17,21 @@ android {
 
     defaultConfig {
         minSdk = 26
+
+        val secretsFile = rootProject.file("local.properties")
+        val properties = Properties()
+        properties.load(secretsFile.inputStream())
+        val baseUrl = properties.getProperty("BASE_URL") ?: ""
+        buildConfigField(type = "String", name = "BASE_URL", value = baseUrl)
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 }
 

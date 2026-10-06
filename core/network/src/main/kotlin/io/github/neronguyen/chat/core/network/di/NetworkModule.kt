@@ -11,6 +11,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.github.neronguyen.chat.core.network.AuthNetworkDataSource
+import io.github.neronguyen.chat.core.network.BuildConfig
 import io.github.neronguyen.chat.core.network.RetrofitAuthNetwork
 import io.github.neronguyen.chat.core.network.api.RetrofitAuthNetworkApi
 import jakarta.inject.Singleton
@@ -75,7 +76,7 @@ internal abstract class NetworkModule {
         ): RetrofitAuthNetworkApi {
             val contentType = "application/json".toMediaType()
             return Retrofit.Builder()
-                .baseUrl("http://10.0.2.2:8080/")
+                .baseUrl(BuildConfig.BASE_URL)
                 .client(okHttpClient)
                 .addConverterFactory(json.asConverterFactory(contentType))
                 .build()
