@@ -31,7 +31,9 @@ include(":app")
 
 include(":feature:auth")
 
+include(":core:common")
 include(":core:model")
+
 include(":core:data")
 include(":core:network")
 include(":core:database")
