@@ -93,9 +93,8 @@ private class FakeAuthRepository : AuthRepository {
         return Either.Right(user)
     }
 
-    override suspend fun refreshToken(): Either<DataError.Network, User> {
-        val user = User("1", "test@example.com", "Test User", true)
-        return Either.Right(user)
+    override suspend fun refreshToken(staleToken: String): Either<DataError.Network, String> {
+        return Either.Right("new_access_token")
     }
 
     override suspend fun logout(): Either<DataError.Network, Unit> = Either.Right(Unit)

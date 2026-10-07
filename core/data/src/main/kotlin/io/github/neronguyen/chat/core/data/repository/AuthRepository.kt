@@ -15,6 +15,7 @@ interface AuthRepository {
         password: String
     ): Either<DataError.Network, User>
 
-    suspend fun refreshToken(): Either<DataError.Network, User>
+    // Return new access token
+    suspend fun refreshToken(staleToken: String): Either<DataError.Network, String>
     suspend fun logout(): Either<DataError.Network, Unit>
 }
