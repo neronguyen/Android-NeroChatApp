@@ -37,8 +37,10 @@ internal class AndroidKeyStoreCryptoManager @Inject constructor() : CryptoManage
         return cipher.doFinal(ciphertext)
     }
 
-    private val keyStore: KeyStore = KeyStore.getInstance(KEYSTORE_PROVIDER).apply {
-        load(null)
+    private val keyStore: KeyStore by lazy {
+        KeyStore.getInstance(KEYSTORE_PROVIDER).apply {
+            load(null)
+        }
     }
 
     @Synchronized
