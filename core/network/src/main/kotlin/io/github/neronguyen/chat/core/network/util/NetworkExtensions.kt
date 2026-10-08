@@ -14,7 +14,7 @@ import java.nio.channels.UnresolvedAddressException
 // TODO: Handle based on response status code
 context(raise: Raise<DataError.Network>)
 internal suspend inline fun <reified T> safeCall(
-    execute: suspend () -> Response<T>
+    execute: suspend () -> Response<T>,
 ): T {
     try {
         val response = execute()
@@ -22,7 +22,11 @@ internal suspend inline fun <reified T> safeCall(
             raise.raise(DataError.Network.Unknown)
         }
 
-        return response.body() ?: raise.raise(DataError.Network.Unknown)
+        val body = response.body()
+        if (body != null) return body
+        if (T::class == Unit::class) return Unit as T
+
+        raise.raise(DataError.Network.Unknown)
 
     } catch (_: SerializationException) {
         raise.raise(DataError.Network.Serialization)
@@ -36,7 +40,8 @@ internal suspend inline fun <reified T> safeCall(
 internal fun Exception.asNetworkError(): DataError.Network = when (this) {
     is UnknownHostException,
     is UnresolvedAddressException,
-    is ConnectException -> DataError.Network.NoInternet
+    is ConnectException,
+        -> DataError.Network.NoInternet
 
     is SocketTimeoutException -> DataError.Network.RequestTimeout
 

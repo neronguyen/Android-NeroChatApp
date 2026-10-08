@@ -15,10 +15,11 @@ import io.github.neronguyen.chat.core.network.model.RegisterRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-internal class AuthRepositoryImpl(
+internal class AuthRepositoryImpl @Inject constructor(
     private val networkDataSource: AuthNetworkDataSource,
     private val tokenDataSource: TokenDataSource,
 ) : AuthRepository {
@@ -70,7 +71,7 @@ internal class AuthRepositoryImpl(
                     tokenDataSource.saveAuthData(
                         response.toDomainUser(),
                         response.accessToken,
-                        response.refreshToken
+                        response.refreshToken,
                     )
                     Either.Right(response.accessToken)
                 }
