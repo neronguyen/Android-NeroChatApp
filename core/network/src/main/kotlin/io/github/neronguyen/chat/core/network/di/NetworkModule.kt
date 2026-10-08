@@ -55,7 +55,8 @@ internal abstract class NetworkModule {
             return OkHttpClient.Builder()
                 .addInterceptor(
                     HttpLoggingInterceptor().apply {
-                        setLevel(HttpLoggingInterceptor.Level.BODY)
+                        if (BuildConfig.DEBUG) setLevel(HttpLoggingInterceptor.Level.BODY)
+                        else setLevel(HttpLoggingInterceptor.Level.NONE)
                     }
                 )
                 .callTimeout(15.seconds)
