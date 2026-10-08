@@ -31,6 +31,7 @@ kotlin {
 
 dependencies {
     implementation(projects.core.model)
+    implementation(projects.core.common)
     implementation(projects.core.security)
 
     // AndroidX DataStore

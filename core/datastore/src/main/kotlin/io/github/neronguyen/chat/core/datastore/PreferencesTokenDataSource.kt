@@ -9,15 +9,21 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.neronguyen.chat.core.common.network.ChatDispatchers
+import io.github.neronguyen.chat.core.common.network.Dispatcher
 import io.github.neronguyen.chat.core.datastore.model.UserData
 import io.github.neronguyen.chat.core.datastore.model.toDomain
 import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.security.CryptoManager
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.IOException
 import javax.inject.Inject
@@ -29,6 +35,7 @@ private val Context.authDataStore: DataStore<Preferences> by preferencesDataStor
 internal class PreferencesTokenDataSource @Inject constructor(
     @ApplicationContext private val context: Context,
     private val cryptoManager: CryptoManager,
+    @Dispatcher(ChatDispatchers.IO) private val ioDispatcher: CoroutineDispatcher
 ) : TokenDataSource {
 
     private val dataStore = context.authDataStore
@@ -108,22 +115,27 @@ internal class PreferencesTokenDataSource @Inject constructor(
         }
     }
 
-    private fun encryptString(rawText: String): String {
-        if (rawText.isEmpty()) return ""
-        val encryptedBytes = cryptoManager.encrypt(rawText.toByteArray(Charsets.UTF_8))
-        return Base64.encodeToString(encryptedBytes, Base64.NO_WRAP)
-    }
+    private suspend fun encryptString(rawText: String): String =
+        withContext(ioDispatcher) {
+            if (rawText.isEmpty()) return@withContext ""
 
-    private fun decryptString(encryptedBase64: String): String {
-        if (encryptedBase64.isEmpty()) return ""
-        return try {
-            val encryptedBytes = Base64.decode(encryptedBase64, Base64.NO_WRAP)
-            val decryptedBytes = cryptoManager.decrypt(encryptedBytes)
-            String(decryptedBytes, Charsets.UTF_8)
-        } catch (_: Exception) {
-            ""
+            val encryptedBytes = cryptoManager.encrypt(rawText.encodeToByteArray())
+            Base64.encodeToString(encryptedBytes, Base64.NO_WRAP)
         }
-    }
+
+    private suspend fun decryptString(encryptedBase64: String): String =
+        withContext(ioDispatcher) {
+            if (encryptedBase64.isEmpty()) return@withContext ""
+
+            try {
+                val encryptedBytes = Base64.decode(encryptedBase64, Base64.NO_WRAP)
+                val decryptedBytes = cryptoManager.decrypt(encryptedBytes)
+                decryptedBytes.decodeToString()
+            } catch (_: Exception) {
+                currentCoroutineContext().ensureActive()
+                ""
+            }
+        }
 
     companion object {
         private val KEY_ENCRYPTED_ACCESS_TOKEN = stringPreferencesKey("encrypted_access_token")
