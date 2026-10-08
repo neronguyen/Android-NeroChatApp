@@ -31,6 +31,10 @@ class RegisterViewModel @Inject constructor(
         }
     }
 
+    fun onRegisterSuccessHandled() {
+        _uiState.update { it.copy(isSuccess = false) }
+    }
+
     private fun register() {
         val emailText = emailState.text.toString().trim()
         val displayNameText = displayNameState.text.toString().trim()

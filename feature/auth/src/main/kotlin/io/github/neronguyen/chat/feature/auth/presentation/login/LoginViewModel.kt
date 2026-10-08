@@ -30,6 +30,10 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    fun onLoginSuccessHandled() {
+        _uiState.update { it.copy(isSuccess = false) }
+    }
+
     private fun login() {
         val emailText = emailState.text.toString().trim()
         val passwordText = passwordState.text.toString()

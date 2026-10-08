@@ -71,6 +71,32 @@ class LoginViewModelTest {
         assertTrue(state.isSuccess)
         assertFalse(state.isLoading)
     }
+
+    @Test
+    fun `when onLoginSuccessHandled called, isSuccess is reset to false and other fields are preserved`() =
+        runTest {
+            viewModel.emailState.setTextAndPlaceCursorAtEnd("test@example.com")
+            viewModel.passwordState.setTextAndPlaceCursorAtEnd("password123")
+            viewModel.onEvent(LoginUiEvent.Login)
+
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val successState = viewModel.uiState.value
+            assertTrue(successState.isSuccess)
+
+            viewModel.onLoginSuccessHandled()
+
+            val handledState = viewModel.uiState.value
+            assertFalse(handledState.isSuccess)
+            assertEquals(successState.isLoading, handledState.isLoading)
+            assertEquals(successState.validationError, handledState.validationError)
+            assertEquals(successState.dataError, handledState.dataError)
+
+            viewModel.onLoginSuccessHandled()
+            val rehandledState = viewModel.uiState.value
+            assertFalse(rehandledState.isSuccess)
+            assertEquals(handledState, rehandledState)
+        }
 }
 
 private class FakeAuthRepository : AuthRepository {
