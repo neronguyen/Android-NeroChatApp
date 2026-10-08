@@ -20,10 +20,12 @@ android {
 
         val secretsFile = rootProject.file("local.properties")
         val properties = Properties()
-        properties.load(secretsFile.inputStream())
-        val baseUrl = properties.getProperty("BASE_URL") ?: "\"https://localhost/\""
-        val formattedBaseUrl = if (baseUrl.startsWith("\"")) baseUrl else "\"$baseUrl\""
-        buildConfigField(type = "String", name = "BASE_URL", value = formattedBaseUrl)
+        if (secretsFile.exists()) {
+            secretsFile.inputStream().use { properties.load(it) }
+        }
+
+        val baseUrl = properties.getProperty("BASE_URL") ?: "http://localhost/"
+        buildConfigField(type = "String", name = "BASE_URL", value = "\"$baseUrl\"")
     }
 
     compileOptions {
