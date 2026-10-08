@@ -11,6 +11,7 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.nio.channels.UnresolvedAddressException
 
+// TODO: Handle based on response status code
 context(raise: Raise<DataError.Network>)
 internal suspend inline fun <reified T> safeCall(
     execute: suspend () -> Response<T>
