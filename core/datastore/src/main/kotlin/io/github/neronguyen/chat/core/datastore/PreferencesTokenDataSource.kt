@@ -5,6 +5,7 @@ import android.util.Base64
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -14,9 +15,11 @@ import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.security.CryptoManager
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,30 +28,38 @@ private val Context.authDataStore: DataStore<Preferences> by preferencesDataStor
 @Singleton
 internal class PreferencesTokenDataSource @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val cryptoManager: CryptoManager
+    private val cryptoManager: CryptoManager,
 ) : TokenDataSource {
 
     private val dataStore = context.authDataStore
     private val json = Json { ignoreUnknownKeys = true }
 
-    override val authState: Flow<AuthState> = dataStore.data.map { preferences ->
-        val encryptedAccessToken =
-            preferences[KEY_ENCRYPTED_ACCESS_TOKEN] ?: return@map AuthState.Unauthenticated
-        val userDataJson = preferences[KEY_USER_DATA] ?: return@map AuthState.Unauthenticated
-
-        val accessToken = decryptString(encryptedAccessToken)
-        if (accessToken.isBlank()) return@map AuthState.Unauthenticated
-
-        try {
-            val userData = json.decodeFromString<UserData>(userDataJson)
-            AuthState.Authenticated(
-                user = userData.toDomain(),
-                accessToken = accessToken
-            )
-        } catch (_: Exception) {
-            AuthState.Unauthenticated
+    override val authState: Flow<AuthState> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
         }
-    }
+        .map { preferences ->
+            val encryptedAccessToken =
+                preferences[KEY_ENCRYPTED_ACCESS_TOKEN] ?: return@map AuthState.Unauthenticated
+            val userDataJson = preferences[KEY_USER_DATA] ?: return@map AuthState.Unauthenticated
+
+            val accessToken = decryptString(encryptedAccessToken)
+            if (accessToken.isBlank()) return@map AuthState.Unauthenticated
+
+            try {
+                val userData = json.decodeFromString<UserData>(userDataJson)
+                AuthState.Authenticated(
+                    user = userData.toDomain(),
+                    accessToken = accessToken,
+                )
+            } catch (_: Exception) {
+                AuthState.Unauthenticated
+            }
+        }
 
     override suspend fun getAccessToken(): String? {
         val preferences = dataStore.data.firstOrNull() ?: return null
@@ -70,7 +81,7 @@ internal class PreferencesTokenDataSource @Inject constructor(
             userId = user.id,
             email = user.email,
             displayName = user.displayName,
-            isEmailVerified = user.isEmailVerified
+            isEmailVerified = user.isEmailVerified,
         )
         val userDataJson = json.encodeToString(UserData.serializer(), userData)
 
