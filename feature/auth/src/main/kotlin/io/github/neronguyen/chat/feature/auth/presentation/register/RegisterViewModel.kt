@@ -15,7 +15,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
 ) : ViewModel() {
 
     val emailState = TextFieldState()
@@ -36,6 +36,8 @@ class RegisterViewModel @Inject constructor(
     }
 
     private fun register() {
+        if (_uiState.value.isLoading) return
+
         val emailText = emailState.text.toString().trim()
         val displayNameText = displayNameState.text.toString().trim()
         val passwordText = passwordState.text.toString()
@@ -44,7 +46,7 @@ class RegisterViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     validationError = AuthValidationError.EmptyEmail,
-                    dataError = null
+                    dataError = null,
                 )
             }
             return
@@ -53,7 +55,7 @@ class RegisterViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     validationError = AuthValidationError.EmptyDisplayName,
-                    dataError = null
+                    dataError = null,
                 )
             }
             return
@@ -62,36 +64,42 @@ class RegisterViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     validationError = AuthValidationError.EmptyPassword,
-                    dataError = null
+                    dataError = null,
                 )
             }
             return
         }
 
+        _uiState.update {
+            it.copy(
+                isLoading = true,
+                validationError = null,
+                dataError = null,
+            )
+        }
+
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, validationError = null, dataError = null) }
             authRepository.register(
                 email = emailText,
                 displayName = displayNameText,
-                password = passwordText
-            ).fold(
-                ifLeft = { networkError ->
+                password = passwordText,
+            )
+                .onLeft { networkError ->
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            dataError = networkError
-                        )
-                    }
-                },
-                ifRight = {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            isSuccess = true
+                            dataError = networkError,
                         )
                     }
                 }
-            )
+                .onRight {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isSuccess = true,
+                        )
+                    }
+                }
         }
     }
 }

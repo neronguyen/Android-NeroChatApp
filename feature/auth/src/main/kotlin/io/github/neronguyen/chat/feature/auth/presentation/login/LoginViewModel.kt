@@ -15,7 +15,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
 ) : ViewModel() {
 
     val emailState = TextFieldState()
@@ -35,6 +35,8 @@ class LoginViewModel @Inject constructor(
     }
 
     private fun login() {
+        if (_uiState.value.isLoading) return
+
         val emailText = emailState.text.toString().trim()
         val passwordText = passwordState.text.toString()
 
@@ -42,7 +44,7 @@ class LoginViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     validationError = AuthValidationError.EmptyEmail,
-                    dataError = null
+                    dataError = null,
                 )
             }
             return
@@ -51,35 +53,41 @@ class LoginViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     validationError = AuthValidationError.EmptyPassword,
-                    dataError = null
+                    dataError = null,
                 )
             }
             return
         }
 
+        _uiState.update {
+            it.copy(
+                isLoading = true,
+                validationError = null,
+                dataError = null,
+            )
+        }
+
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, validationError = null, dataError = null) }
             authRepository.login(
                 email = emailText,
-                password = passwordText
-            ).fold(
-                ifLeft = { networkError ->
+                password = passwordText,
+            )
+                .onLeft { networkError ->
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            dataError = networkError
-                        )
-                    }
-                },
-                ifRight = {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            isSuccess = true
+                            dataError = networkError,
                         )
                     }
                 }
-            )
+                .onRight {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isSuccess = true,
+                        )
+                    }
+                }
         }
     }
 }
