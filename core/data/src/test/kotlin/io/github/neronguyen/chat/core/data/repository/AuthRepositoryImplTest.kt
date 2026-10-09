@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -56,11 +57,13 @@ class AuthRepositoryImplTest {
 
     private class FakeAuthNetworkDataSource : AuthNetworkDataSource {
         val refreshRequests = mutableListOf<RefreshTokenRequest>()
+        val logoutRequests = mutableListOf<RefreshTokenRequest>()
         var refreshResult: (RefreshTokenRequest) -> Either<DataError.Network, AuthenticatedUserDto> =
             { (reqToken) ->
                 Either.Left(DataError.Network.Unknown)
             }
         var refreshDelayMs: Long = 0
+        var logoutDelayMs: Long = 0
 
         override suspend fun login(request: LoginRequest): Either<DataError.Network, AuthenticatedUserDto> {
             return Either.Left(DataError.Network.Unknown)
@@ -81,6 +84,12 @@ class AuthRepositoryImplTest {
         }
 
         override suspend fun logout(request: RefreshTokenRequest): Either<DataError.Network, Unit> {
+            synchronized(logoutRequests) {
+                logoutRequests.add(request)
+            }
+            if (logoutDelayMs > 0) {
+                delay(logoutDelayMs.milliseconds)
+            }
             return Either.Right(Unit)
         }
     }
@@ -104,7 +113,7 @@ class AuthRepositoryImplTest {
             savedRefreshToken = "old_refresh_token"
         }
         val networkDataSource = FakeAuthNetworkDataSource().apply {
-            refreshResult = {
+            refreshResult = { (reqToken) ->
                 Either.Right(
                     AuthenticatedUserDto(
                         user = UserDto(
@@ -144,7 +153,6 @@ class AuthRepositoryImplTest {
 
             assertTrue(result.isRight())
             assertEquals("already_refreshed_access_token", (result as Either.Right).value)
-            // No network call made because current access token already differs from stale token
             assertEquals(0, networkDataSource.refreshRequests.size)
         }
 
@@ -186,7 +194,6 @@ class AuthRepositoryImplTest {
             assertEquals("new_access_token", (results[0] as Either.Right).value)
             assertEquals("new_access_token", (results[1] as Either.Right).value)
 
-            // Only 1 network call was made; second caller acquired lock after call 1 updated access token
             assertEquals(1, networkDataSource.refreshRequests.size)
             assertEquals("refresh_token_2", tokenDataSource.savedRefreshToken)
         }
@@ -206,5 +213,62 @@ class AuthRepositoryImplTest {
 
         assertTrue(result.isLeft())
         assertEquals(DataError.Network.RequestTimeout, (result as Either.Left).value)
+    }
+
+    @Test
+    fun logout_withTokenStored_callsNetworkLogoutAndClearsAuthData() = runTest {
+        val tokenDataSource = FakeTokenDataSource().apply {
+            savedAccessToken = "access_token"
+            savedRefreshToken = "refresh_token"
+        }
+        val networkDataSource = FakeAuthNetworkDataSource()
+        val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
+
+        val result = repository.logout()
+
+        assertTrue(result.isRight())
+        assertEquals(1, networkDataSource.logoutRequests.size)
+        assertEquals("refresh_token", networkDataSource.logoutRequests[0].refreshToken)
+        assertTrue(tokenDataSource.clearCalled)
+        assertNull(tokenDataSource.savedAccessToken)
+        assertNull(tokenDataSource.savedRefreshToken)
+    }
+
+    @Test
+    fun logout_withoutTokenStored_clearsAuthDataWithoutNetworkLogout() = runTest {
+        val tokenDataSource = FakeTokenDataSource()
+        val networkDataSource = FakeAuthNetworkDataSource()
+        val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
+
+        val result = repository.logout()
+
+        assertTrue(result.isRight())
+        assertEquals(0, networkDataSource.logoutRequests.size)
+        assertTrue(tokenDataSource.clearCalled)
+    }
+
+    @Test
+    fun logout_concurrentWithRefreshToken_serializedWithMutex() = runTest {
+        val tokenDataSource = FakeTokenDataSource().apply {
+            savedAccessToken = "stale_token"
+            savedRefreshToken = "valid_refresh_token"
+        }
+        val networkDataSource = FakeAuthNetworkDataSource().apply {
+            logoutDelayMs = 50
+        }
+        val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
+
+        // Launch logout and refresh token concurrently
+        val logoutCall = async { repository.logout() }
+        val refreshCall = async { repository.refreshToken("stale_token") }
+
+        val logoutResult = logoutCall.await()
+        val refreshResult = refreshCall.await()
+
+        assertTrue(logoutResult.isRight())
+        // Since logout acquired lock first and cleared data, refresh returns error
+        assertTrue(refreshResult.isLeft())
+        assertEquals(DataError.Network.Unknown, (refreshResult as Either.Left).value)
+        assertTrue(tokenDataSource.clearCalled)
     }
 }

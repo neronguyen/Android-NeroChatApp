@@ -79,12 +79,14 @@ internal class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun logout(): Either<DataError.Network, Unit> {
-        val currentRefreshToken = tokenDataSource.getRefreshToken()
-        if (currentRefreshToken != null) {
-            networkDataSource.logout(RefreshTokenRequest(currentRefreshToken))
-        }
+        return refreshMutex.withLock {
+            val currentRefreshToken = tokenDataSource.getRefreshToken()
+            if (currentRefreshToken != null) {
+                networkDataSource.logout(RefreshTokenRequest(currentRefreshToken))
+            }
 
-        tokenDataSource.clearAuthData()
-        return Either.Right(Unit)
+            tokenDataSource.clearAuthData()
+            Either.Right(Unit)
+        }
     }
 }
