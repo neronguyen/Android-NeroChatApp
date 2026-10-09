@@ -7,12 +7,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedSecureTextField
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -21,12 +23,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.neronguyen.chat.core.ui.asUiText
+import io.github.neronguyen.chat.core.ui.rememberMinLoading
 import io.github.neronguyen.chat.feature.auth.R
 import io.github.neronguyen.chat.feature.auth.presentation.util.asUiText
 
@@ -35,7 +39,7 @@ fun RegisterRoute(
     viewModel: RegisterViewModel,
     onNavigateToLogin: () -> Unit,
     onRegisterSuccess: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -53,7 +57,7 @@ fun RegisterRoute(
         uiState = uiState,
         onEvent = viewModel::onEvent,
         onNavigateToLogin = onNavigateToLogin,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -65,18 +69,20 @@ fun RegisterScreen(
     uiState: RegisterUiState,
     onEvent: (RegisterUiEvent) -> Unit,
     onNavigateToLogin: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
+    val showLoading by rememberMinLoading(isLoading = uiState.isLoading)
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(
             text = stringResource(R.string.create_account),
-            style = MaterialTheme.typography.headlineMedium
+            style = MaterialTheme.typography.headlineMedium,
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -87,9 +93,9 @@ fun RegisterScreen(
             lineLimits = TextFieldLineLimits.SingleLine,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
-                imeAction = ImeAction.Next
+                imeAction = ImeAction.Next,
             ),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -100,51 +106,46 @@ fun RegisterScreen(
             lineLimits = TextFieldLineLimits.SingleLine,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Next
+                imeAction = ImeAction.Next,
             ),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
+        OutlinedSecureTextField(
             state = passwordState,
             label = { Text(stringResource(R.string.password)) },
-            lineLimits = TextFieldLineLimits.SingleLine,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Done
+                imeAction = ImeAction.Done,
             ),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
 
-        uiState.validationError?.let { error ->
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = error.asUiText(),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
+        Spacer(modifier = Modifier.height(12.dp))
 
-        uiState.dataError?.let { error ->
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = error.asUiText(),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
+        val activeErrorText = uiState.validationError?.asUiText() ?: uiState.dataError?.asUiText()
+        Text(
+            text = activeErrorText.orEmpty(),
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.alpha(if (activeErrorText != null) 1f else 0f),
+        )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        if (uiState.isLoading) {
-            CircularProgressIndicator()
-        } else {
-            Button(
-                onClick = { onEvent(RegisterUiEvent.Register) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
+        Button(
+            onClick = { onEvent(RegisterUiEvent.Register) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !uiState.isLoading,
+        ) {
+            if (showLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+            } else {
                 Text(stringResource(R.string.register))
             }
         }
