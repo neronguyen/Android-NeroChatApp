@@ -40,6 +40,7 @@ class LoginViewModel @Inject constructor(
         val emailText = emailState.text.toString().trim()
         val passwordText = passwordState.text.toString()
 
+        // TODO: Validate email and password with proper use cases and error handling
         if (emailText.isBlank()) {
             _uiState.update {
                 it.copy(
@@ -49,6 +50,7 @@ class LoginViewModel @Inject constructor(
             }
             return
         }
+
         if (passwordText.isBlank()) {
             _uiState.update {
                 it.copy(
