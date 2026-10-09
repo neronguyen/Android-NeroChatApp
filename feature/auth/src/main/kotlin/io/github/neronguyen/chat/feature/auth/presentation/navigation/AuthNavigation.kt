@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
@@ -20,14 +21,14 @@ import io.github.neronguyen.chat.feature.auth.presentation.register.RegisterView
 fun EntryProviderScope<NavKey>.authSection(
     onAuthSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
 ) {
     entry<AuthRoute.Login> {
         val viewModel: LoginViewModel = hiltViewModel()
         LoginRoute(
             viewModel = viewModel,
             onNavigateToRegister = onNavigateToRegister,
-            onLoginSuccess = onAuthSuccess
+            onLoginSuccess = onAuthSuccess,
         )
     }
     entry<AuthRoute.Register> {
@@ -35,7 +36,7 @@ fun EntryProviderScope<NavKey>.authSection(
         RegisterRoute(
             viewModel = viewModel,
             onNavigateToLogin = onNavigateToLogin,
-            onRegisterSuccess = onNavigateToLogin
+            onRegisterSuccess = onNavigateToLogin,
         )
     }
 }
@@ -44,7 +45,7 @@ fun EntryProviderScope<NavKey>.authSection(
 fun AuthNavGraph(
     onAuthSuccess: () -> Unit,
     modifier: Modifier = Modifier,
-    startRoute: AuthRoute = AuthRoute.Login
+    startRoute: AuthRoute = AuthRoute.Login,
 ) {
     val backStack = rememberNavBackStack(startRoute)
 
@@ -57,22 +58,26 @@ fun AuthNavGraph(
                 },
                 onNavigateToLogin = {
                     backStack.popOrNavigateTo(AuthRoute.Login)
-                }
+                },
             )
         }
     }
 
-    val decorators = listOf(rememberSaveableStateHolderNavEntryDecorator<NavKey>())
+    val saveableStateHolderDecorator = rememberSaveableStateHolderNavEntryDecorator<NavKey>()
+    val viewModelStoreDecorator = rememberViewModelStoreNavEntryDecorator<NavKey>()
+    val decorators = remember(saveableStateHolderDecorator, viewModelStoreDecorator) {
+        listOf(saveableStateHolderDecorator, viewModelStoreDecorator)
+    }
     val entries = rememberDecoratedNavEntries(
         backStack = backStack,
         entryDecorators = decorators,
-        entryProvider = entryProvider
+        entryProvider = entryProvider,
     )
 
     NavDisplay(
         entries = entries,
         onBack = { backStack.pop() },
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
