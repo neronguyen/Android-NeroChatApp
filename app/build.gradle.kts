@@ -53,8 +53,14 @@ kotlin {
 }
 
 dependencies {
+    implementation(projects.feature.auth)
+
     implementation(projects.core.model)
     implementation(projects.core.data)
+    implementation(projects.core.network)
+    implementation(projects.core.security)
+    implementation(projects.core.datastore)
+    implementation(projects.core.ui)
 
     // Androidx
     implementation(libs.androidx.activity.compose)

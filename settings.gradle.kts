@@ -28,7 +28,15 @@ rootProject.name = "ChatApp"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include(":app")
-include(":core:data")
+
+include(":feature:auth")
+
+include(":core:common")
 include(":core:model")
+
+include(":core:data")
 include(":core:network")
 include(":core:database")
+include(":core:security")
+include(":core:datastore")
+include(":core:ui")
