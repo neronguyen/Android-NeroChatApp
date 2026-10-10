@@ -6,6 +6,11 @@ sealed interface DataError {
         NoInternet,
         RequestTimeout,
         Serialization,
+        SocketError,
         Unknown
+    }
+
+    enum class Local : DataError {
+        Unauthorized,
     }
 }
