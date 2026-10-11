@@ -10,6 +10,8 @@ fun DataError.asUiText(): String {
         DataError.Network.NoInternet -> stringResource(R.string.error_no_internet)
         DataError.Network.RequestTimeout -> stringResource(R.string.error_timeout)
         DataError.Network.Serialization -> stringResource(R.string.error_serialization)
+        DataError.Network.SocketError -> stringResource(R.string.error_socket)
         DataError.Network.Unknown -> stringResource(R.string.error_unknown)
+        DataError.Local.Unauthorized -> stringResource(R.string.error_unauthorized)
     }
 }
