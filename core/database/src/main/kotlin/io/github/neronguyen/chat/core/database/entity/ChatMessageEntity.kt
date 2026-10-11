@@ -8,13 +8,11 @@ import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 @Entity(
     tableName = "chat_messages",
     indices = [
-        Index(value = ["chatRoomId", "timestamp"]),
-        Index(value = ["tempId"])
+        Index(value = ["chatRoomId", "timestamp"])
     ]
 )
 data class ChatMessageEntity(
     @PrimaryKey val id: String,
-    val tempId: String? = null,
     val chatRoomId: String,
     val senderId: String,
     val content: String,

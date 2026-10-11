@@ -65,18 +65,14 @@ class RealtimeConnectionManager @Inject constructor(
 
     private suspend fun handleNewMessage(event: WsServerEvent.NewMessage) {
         val dto = event.message
-        val tempId = dto.tempId
 
-        if (!tempId.isNullOrEmpty()) {
-            chatDao.reconcileMessageAck(
-                chatRoomId = dto.chatRoomId,
-                messageId = dto.id,
-                serverTimestamp = dto.createdAt.toEpochMilliseconds(),
-                status = MessageDeliveryStatus.SENT
-            )
-        } else {
-            chatDao.upsertMessages(listOf(dto.toEntity(MessageDeliveryStatus.SENT)))
-        }
+        chatDao.upsertMessages(listOf(dto.toEntity(MessageDeliveryStatus.SENT)))
+        chatDao.reconcileMessageAck(
+            chatRoomId = dto.chatRoomId,
+            messageId = dto.id,
+            serverTimestamp = dto.createdAt.toEpochMilliseconds(),
+            status = MessageDeliveryStatus.SENT
+        )
     }
 
     companion object {
