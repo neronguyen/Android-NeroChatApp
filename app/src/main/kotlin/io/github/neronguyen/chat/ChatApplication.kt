@@ -7,6 +7,7 @@ import androidx.work.Configuration
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import dagger.hilt.android.HiltAndroidApp
+import io.github.neronguyen.chat.core.data.realtime.RealtimeConnectionManager
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -17,6 +18,14 @@ class ChatApplication : Application(), Configuration.Provider, SingletonImageLoa
 
     @Inject
     lateinit var imageLoader: ImageLoader
+
+    @Inject
+    lateinit var realtimeConnectionManager: RealtimeConnectionManager
+
+    override fun onCreate() {
+        super.onCreate()
+        realtimeConnectionManager.initialize()
+    }
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
