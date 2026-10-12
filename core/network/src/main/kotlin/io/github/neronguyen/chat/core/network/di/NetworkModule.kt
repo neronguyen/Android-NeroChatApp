@@ -15,6 +15,7 @@ import io.github.neronguyen.chat.core.network.BuildConfig
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.interceptor.AuthInterceptor
+import io.github.neronguyen.chat.core.network.interceptor.TokenAuthenticator
 import io.github.neronguyen.chat.core.network.retrofit.RetrofitAuthNetwork
 import io.github.neronguyen.chat.core.network.retrofit.RetrofitChatNetwork
 import io.github.neronguyen.chat.core.network.websocket.ChatWebSocketClient
@@ -50,33 +51,48 @@ internal abstract class NetworkModule {
 
         @Provides
         @Singleton
+        @AuthOkHttp
+        fun provideAuthOkHttpClient(): OkHttpClient {
+            return OkHttpClient.Builder()
+                .addInterceptor(
+                    HttpLoggingInterceptor().apply {
+                        level = if (BuildConfig.DEBUG) {
+                            HttpLoggingInterceptor.Level.BODY
+                        } else {
+                            HttpLoggingInterceptor.Level.NONE
+                        }
+                    }
+                )
+                .callTimeout(15.seconds)
+                .pingInterval(30.seconds)
+                .build()
+        }
+
+        @Provides
+        @Singleton
+        @AuthenticatedOkHttp
+        fun provideAuthenticatedOkHttpClient(
+            @AuthOkHttp baseClient: OkHttpClient,
+            authInterceptor: AuthInterceptor,
+            tokenAuthenticator: TokenAuthenticator
+        ): OkHttpClient {
+            return baseClient.newBuilder()
+                .addInterceptor(authInterceptor)
+                .authenticator(tokenAuthenticator)
+                .build()
+        }
+
+        @Provides
+        @Singleton
         fun provideImageLoader(
             @ApplicationContext context: Context,
-            okHttpClient: OkHttpClient
+            @AuthOkHttp okHttpClient: OkHttpClient
         ): ImageLoader {
             return ImageLoader.Builder(context)
                 .components {
                     add(OkHttpNetworkFetcherFactory(okHttpClient))
                 }
                 .crossfade(true)
-                .build()
-        }
-
-        @Provides
-        @Singleton
-        fun provideOkHttpClient(
-            authInterceptor: AuthInterceptor
-        ): OkHttpClient {
-            return OkHttpClient.Builder()
-                .addInterceptor(authInterceptor)
-                .addInterceptor(
-                    HttpLoggingInterceptor().apply {
-                        if (BuildConfig.DEBUG) setLevel(HttpLoggingInterceptor.Level.BODY)
-                        else setLevel(HttpLoggingInterceptor.Level.NONE)
-                    }
-                )
-                .callTimeout(15.seconds)
-                .pingInterval(30.seconds)
                 .build()
         }
 
