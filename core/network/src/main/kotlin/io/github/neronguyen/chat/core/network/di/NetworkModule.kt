@@ -12,15 +12,16 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.github.neronguyen.chat.core.network.AuthNetworkDataSource
 import io.github.neronguyen.chat.core.network.BuildConfig
-import io.github.neronguyen.chat.core.network.RetrofitAuthNetwork
-import io.github.neronguyen.chat.core.network.api.RetrofitAuthNetworkApi
+import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
+import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
+import io.github.neronguyen.chat.core.network.interceptor.AuthInterceptor
+import io.github.neronguyen.chat.core.network.retrofit.RetrofitAuthNetwork
+import io.github.neronguyen.chat.core.network.retrofit.RetrofitChatNetwork
+import io.github.neronguyen.chat.core.network.websocket.ChatWebSocketClient
 import jakarta.inject.Singleton
 import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlin.time.Duration.Companion.seconds
 
 @Module
@@ -32,6 +33,18 @@ internal abstract class NetworkModule {
     abstract fun bindAuthNetworkDataSource(
         impl: RetrofitAuthNetwork
     ): AuthNetworkDataSource
+
+    @Binds
+    @Singleton
+    abstract fun bindChatNetworkDataSource(
+        impl: RetrofitChatNetwork
+    ): ChatNetworkDataSource
+
+    @Binds
+    @Singleton
+    abstract fun bindChatRealtimeDataSource(
+        impl: ChatWebSocketClient
+    ): ChatRealtimeDataSource
 
     internal companion object {
 
@@ -51,8 +64,11 @@ internal abstract class NetworkModule {
 
         @Provides
         @Singleton
-        fun provideOkHttpClient(): OkHttpClient {
+        fun provideOkHttpClient(
+            authInterceptor: AuthInterceptor
+        ): OkHttpClient {
             return OkHttpClient.Builder()
+                .addInterceptor(authInterceptor)
                 .addInterceptor(
                     HttpLoggingInterceptor().apply {
                         if (BuildConfig.DEBUG) setLevel(HttpLoggingInterceptor.Level.BODY)
@@ -60,6 +76,7 @@ internal abstract class NetworkModule {
                     }
                 )
                 .callTimeout(15.seconds)
+                .pingInterval(30.seconds)
                 .build()
         }
 
@@ -67,21 +84,6 @@ internal abstract class NetworkModule {
         @Singleton
         fun provideNetworkJson(): Json = Json {
             ignoreUnknownKeys = true
-        }
-
-        @Provides
-        @Singleton
-        fun provideRetrofitAuthNetworkApi(
-            okHttpClient: OkHttpClient,
-            json: Json
-        ): RetrofitAuthNetworkApi {
-            val contentType = "application/json".toMediaType()
-            return Retrofit.Builder()
-                .baseUrl(BuildConfig.BASE_URL)
-                .client(okHttpClient)
-                .addConverterFactory(json.asConverterFactory(contentType))
-                .build()
-                .create(RetrofitAuthNetworkApi::class.java)
         }
     }
 }

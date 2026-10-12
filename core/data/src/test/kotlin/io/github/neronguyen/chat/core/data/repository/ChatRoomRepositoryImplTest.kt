@@ -19,6 +19,7 @@ import io.github.neronguyen.chat.core.network.model.ChatMessageDto
 import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
 import io.github.neronguyen.chat.core.network.model.ChatRoomDto
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
+import io.github.neronguyen.chat.core.network.model.websocket.WsClientMessage
 import io.github.neronguyen.chat.core.network.model.websocket.WsServerEvent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -74,9 +75,7 @@ class ChatRoomRepositoryImplTest {
         override suspend fun disconnect() {}
 
         override suspend fun sendMessage(
-            chatRoomId: String,
-            content: String,
-            tempId: String?
+            message: WsClientMessage
         ): Either<DataError.Network, Unit> {
             return if (shouldSucceed) {
                 Either.Right(Unit)
@@ -97,7 +96,10 @@ class ChatRoomRepositoryImplTest {
 
         override suspend fun getChatRoomsForUser(): Either<DataError.Network, List<ChatRoomDto>> = Either.Right(emptyList())
         override suspend fun getChatRoom(chatRoomId: String): Either<DataError.Network, ChatRoomDto> = Either.Left(DataError.Network.Unknown)
-        override suspend fun getMessagesForChatRoom(chatRoomId: String): Either<DataError.Network, List<ChatMessageDto>> = Either.Right(emptyList())
+        override suspend fun getMessagesForChatRoom(
+            chatRoomId: String,
+            before: String?
+        ): Either<DataError.Network, List<ChatMessageDto>> = Either.Right(emptyList())
         override suspend fun getParticipantByEmail(email: String): Either<DataError.Network, ChatParticipantDto> = participantResponse
         override suspend fun createDirectChatRoom(targetUserId: String, message: String): Either<DataError.Network, ChatRoomDto> {
             lastDirectTargetUserId = targetUserId
@@ -109,6 +111,16 @@ class ChatRoomRepositoryImplTest {
             lastGroupName = name
             return groupChatResponse
         }
+        override suspend fun addParticipantsToGroup(
+            chatRoomId: String,
+            userIds: List<String>
+        ): Either<DataError.Network, ChatRoomDto> = Either.Left(DataError.Network.Unknown)
+
+        override suspend fun leaveChatRoom(chatRoomId: String): Either<DataError.Network, Unit> =
+            Either.Right(Unit)
+
+        override suspend fun deleteMessage(messageId: String): Either<DataError.Network, Unit> =
+            Either.Right(Unit)
     }
 
     private class FakeTokenDataSource(
@@ -118,6 +130,8 @@ class ChatRoomRepositoryImplTest {
         )
     ) : TokenDataSource {
         override val authState: Flow<AuthState> = flowOf(initialAuthState)
+        override val currentAccessToken: String?
+            get() = "access_token"
 
         override suspend fun getRefreshToken(): String? = "refresh_token"
         override suspend fun getAccessToken(): String? = "access_token"

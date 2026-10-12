@@ -13,6 +13,7 @@ import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.model.ChatMessageDto
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
+import io.github.neronguyen.chat.core.network.model.websocket.WsClientMessage
 import io.github.neronguyen.chat.core.network.model.websocket.WsServerEvent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -25,8 +26,6 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
 import kotlin.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -53,9 +52,7 @@ class RealtimeConnectionManagerTest {
         }
 
         override suspend fun sendMessage(
-            chatRoomId: String,
-            content: String,
-            tempId: String?
+            message: WsClientMessage
         ): Either<DataError.Network, Unit> {
             return Either.Right(Unit)
         }

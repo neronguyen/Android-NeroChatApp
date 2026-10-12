@@ -15,6 +15,7 @@ import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.model.ChatRoomDto
+import io.github.neronguyen.chat.core.network.model.websocket.WsClientMessage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
@@ -114,9 +115,11 @@ internal class ChatRoomRepositoryImpl @Inject constructor(
         chatDao.upsertMessage(sendingEntity)
 
         return realtimeDataSource.sendMessage(
-            chatRoomId = chatRoomId,
-            content = message,
-            messageId = messageId
+            WsClientMessage.NewMessage(
+                chatRoomId = chatRoomId,
+                content = message,
+                messageId = messageId
+            )
         ).onLeft {
             chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.FAILED)
         }

@@ -8,14 +8,16 @@ import io.github.neronguyen.chat.core.network.model.ChatRoomDto
 
 interface ChatNetworkDataSource {
     suspend fun getChatRoomsForUser(): Either<DataError.Network, List<ChatRoomDto>>
+
     suspend fun getChatRoom(chatRoomId: String): Either<DataError.Network, ChatRoomDto>
 
-    // TODO Pagination
-    suspend fun getMessagesForChatRoom(chatRoomId: String): Either<DataError.Network, List<ChatMessageDto>>
+    suspend fun getMessagesForChatRoom(
+        chatRoomId: String,
+        before: String? = null
+    ): Either<DataError.Network, List<ChatMessageDto>>
 
     suspend fun getParticipantByEmail(email: String): Either<DataError.Network, ChatParticipantDto>
 
-    // TODO Pass generated messageId to server to sync with realtime message
     suspend fun createDirectChatRoom(
         targetUserId: String,
         message: String
@@ -25,4 +27,13 @@ interface ChatNetworkDataSource {
         participantIds: List<String>,
         name: String? = null
     ): Either<DataError.Network, ChatRoomDto>
+
+    suspend fun addParticipantsToGroup(
+        chatRoomId: String,
+        userIds: List<String>
+    ): Either<DataError.Network, ChatRoomDto>
+
+    suspend fun leaveChatRoom(chatRoomId: String): Either<DataError.Network, Unit>
+
+    suspend fun deleteMessage(messageId: String): Either<DataError.Network, Unit>
 }

@@ -23,9 +23,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -40,6 +42,11 @@ internal class PreferencesTokenDataSource @Inject constructor(
 
     private val dataStore = context.authDataStore
     private val json = Json { ignoreUnknownKeys = true }
+
+    private val cachedAccessToken = AtomicReference<String?>(null)
+
+    override val currentAccessToken: String?
+        get() = cachedAccessToken.get()
 
     override val authState: Flow<AuthState> = dataStore.data
         .catch { exception ->
@@ -67,11 +74,23 @@ internal class PreferencesTokenDataSource @Inject constructor(
                 AuthState.Unauthenticated
             }
         }
+        .onEach { state ->
+            if (state is AuthState.Authenticated) {
+                cachedAccessToken.set(state.accessToken)
+            } else {
+                cachedAccessToken.set(null)
+            }
+        }
 
     override suspend fun getAccessToken(): String? {
+        val cached = cachedAccessToken.get()
+        if (!cached.isNullOrBlank()) return cached
+
         val preferences = dataStore.data.firstOrNull() ?: return null
         val encrypted = preferences[KEY_ENCRYPTED_ACCESS_TOKEN] ?: return null
-        return decryptString(encrypted).ifBlank { null }
+        val decrypted = decryptString(encrypted).ifBlank { null }
+        cachedAccessToken.set(decrypted)
+        return decrypted
     }
 
     override suspend fun getRefreshToken(): String? {
@@ -81,6 +100,7 @@ internal class PreferencesTokenDataSource @Inject constructor(
     }
 
     override suspend fun saveAuthData(user: User, accessToken: String, refreshToken: String) {
+        cachedAccessToken.set(accessToken)
         val encryptedAccessToken = encryptString(accessToken)
         val encryptedRefreshToken = encryptString(refreshToken)
 
@@ -100,6 +120,7 @@ internal class PreferencesTokenDataSource @Inject constructor(
     }
 
     override suspend fun saveTokens(accessToken: String, refreshToken: String) {
+        cachedAccessToken.set(accessToken)
         val encryptedAccessToken = encryptString(accessToken)
         val encryptedRefreshToken = encryptString(refreshToken)
 
@@ -110,6 +131,7 @@ internal class PreferencesTokenDataSource @Inject constructor(
     }
 
     override suspend fun clearAuthData() {
+        cachedAccessToken.set(null)
         dataStore.edit { preferences ->
             preferences.clear()
         }
