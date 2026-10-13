@@ -4,12 +4,16 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import io.github.neronguyen.chat.core.common.network.AppScope
+import io.github.neronguyen.chat.core.common.network.ChatDispatchers
+import io.github.neronguyen.chat.core.common.network.Dispatcher
 import io.github.neronguyen.chat.core.data.mapper.toEntity
 import io.github.neronguyen.chat.core.database.dao.ChatDao
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.model.websocket.WsServerEvent
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -21,7 +25,8 @@ import kotlin.time.Duration.Companion.milliseconds
 class RealtimeConnectionManager @Inject constructor(
     private val realtimeDataSource: ChatRealtimeDataSource,
     private val chatDao: ChatDao,
-    @AppScope private val appScope: CoroutineScope
+    @AppScope private val appScope: CoroutineScope,
+    @Dispatcher(ChatDispatchers.IO) private val ioDispatcher: CoroutineDispatcher
 ) : DefaultLifecycleObserver {
 
     private var observeEventsJob: Job? = null
@@ -34,13 +39,16 @@ class RealtimeConnectionManager @Inject constructor(
     override fun onStart(owner: LifecycleOwner) {
         disconnectJob?.cancel()
         disconnectJob = null
-        appScope.launch { realtimeDataSource.connect() }
+        appScope.launch {
+            realtimeDataSource.connect()
+        }
+
         startObservingEventsIfNeeded()
     }
 
     override fun onStop(owner: LifecycleOwner) {
         disconnectJob?.cancel()
-        disconnectJob = appScope.launch {
+        disconnectJob = appScope.launch(Dispatchers.Main.immediate) {
             delay(DISCONNECT_DELAY_MS.milliseconds)
             observeEventsJob?.cancel()
             observeEventsJob = null
@@ -49,9 +57,11 @@ class RealtimeConnectionManager @Inject constructor(
     }
 
     private fun startObservingEventsIfNeeded() {
-        if (observeEventsJob?.isActive == true) return
+        if (observeEventsJob?.isActive == true) {
+            return
+        }
 
-        observeEventsJob = appScope.launch {
+        observeEventsJob = appScope.launch(ioDispatcher) {
             realtimeDataSource.incomingEvents.collect { event ->
                 when (event) {
                     is WsServerEvent.NewMessage -> handleNewMessage(event)
@@ -65,7 +75,6 @@ class RealtimeConnectionManager @Inject constructor(
 
     private suspend fun handleNewMessage(event: WsServerEvent.NewMessage) {
         val dto = event.message
-
         chatDao.upsertMessages(listOf(dto.toEntity(MessageDeliveryStatus.SENT)))
         chatDao.reconcileMessageAck(
             chatRoomId = dto.chatRoomId,
