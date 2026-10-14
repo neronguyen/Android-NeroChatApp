@@ -67,8 +67,11 @@ class RealtimeConnectionManager @Inject constructor(
             realtimeDataSource.incomingEvents.collect { event ->
                 when (event) {
                     is WsServerEvent.NewMessage -> handleNewMessage(event)
-                    else -> {
-                        // TODO: Handle typing, member join/leave, deleted events
+                    is WsServerEvent.MessageDeleted -> handleMessageDeleted(event)
+                    is WsServerEvent.ParticipantJoined -> handleParticipantJoined(event)
+                    is WsServerEvent.ParticipantLeft -> handleParticipantLeft(event)
+                    is WsServerEvent.Error -> {
+                        // Ignore or log error
                     }
                 }
             }
@@ -77,12 +80,31 @@ class RealtimeConnectionManager @Inject constructor(
 
     private suspend fun handleNewMessage(event: WsServerEvent.NewMessage) {
         val dto = event.message
-        chatDao.upsertMessages(listOf(dto.toEntity(MessageDeliveryStatus.SENT)))
         chatDao.reconcileMessageAck(
             chatRoomId = dto.chatRoomId,
             messageId = dto.id,
             serverTimestamp = dto.createdAt.toEpochMilliseconds(),
             status = MessageDeliveryStatus.SENT
+        )
+    }
+
+    private suspend fun handleMessageDeleted(event: WsServerEvent.MessageDeleted) {
+        chatDao.updateDeliveryStatus(event.messageId, MessageDeliveryStatus.DELETED)
+    }
+
+    private suspend fun handleParticipantJoined(event: WsServerEvent.ParticipantJoined) {
+        chatDao.handleParticipantJoined(
+            chatRoomId = event.chatRoomId,
+            newUsers = event.newUsers.map { it.toEntity() },
+            addedBy = event.addedBy?.toEntity()
+        )
+    }
+
+    private suspend fun handleParticipantLeft(event: WsServerEvent.ParticipantLeft) {
+        chatDao.handleParticipantLeft(
+            chatRoomId = event.chatRoomId,
+            leftUser = event.leftUser.toEntity(),
+            kickedBy = event.kickedBy?.toEntity()
         )
     }
 
@@ -111,8 +133,7 @@ class RealtimeConnectionManager @Inject constructor(
                         realtimeDataSource.connect()
                     }
 
-                    is SocketConnectionState.Connecting,
-                    is SocketConnectionState.Idle -> {
+                    is SocketConnectionState.Connecting -> {
                         // Ignore
                     }
                 }

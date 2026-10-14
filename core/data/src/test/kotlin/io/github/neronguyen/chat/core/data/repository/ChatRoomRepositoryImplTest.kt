@@ -60,6 +60,22 @@ class ChatRoomRepositoryImplTest {
 
         override suspend fun deleteMessage(messageId: String) {}
 
+        override suspend fun deleteParticipantCrossRef(chatRoomId: String, userId: String) {}
+
+        override suspend fun handleParticipantJoined(
+            chatRoomId: String,
+            newUsers: List<ChatParticipantEntity>,
+            addedBy: ChatParticipantEntity?
+        ) {
+        }
+
+        override suspend fun handleParticipantLeft(
+            chatRoomId: String,
+            leftUser: ChatParticipantEntity,
+            kickedBy: ChatParticipantEntity?
+        ) {
+        }
+
         override suspend fun updateRoomLastActivity(chatRoomId: String, messageId: String, timestamp: Long) {}
 
         override suspend fun updateMessageStatusAndTimestamp(messageId: String, timestamp: Long, status: MessageDeliveryStatus) {}

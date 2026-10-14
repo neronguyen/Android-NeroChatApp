@@ -62,6 +62,9 @@ interface ChatDao {
     @Query("DELETE FROM chat_messages WHERE id = :messageId")
     suspend fun deleteMessage(messageId: String)
 
+    @Query("DELETE FROM chat_room_participants WHERE chatId = :chatRoomId AND userId = :userId")
+    suspend fun deleteParticipantCrossRef(chatRoomId: String, userId: String)
+
     @Query("UPDATE chat_rooms SET lastMessageId = :messageId, lastActivityAt = :timestamp WHERE id = :chatRoomId")
     suspend fun updateRoomLastActivity(chatRoomId: String, messageId: String, timestamp: Long)
 
@@ -109,5 +112,31 @@ interface ChatDao {
         }
 
         upsertCrossRefs(crossRefs)
+    }
+
+    @Transaction
+    suspend fun handleParticipantJoined(
+        chatRoomId: String,
+        newUsers: List<ChatParticipantEntity>,
+        addedBy: ChatParticipantEntity? = null
+    ) {
+        addedBy?.let { upsertParticipant(it) }
+        if (newUsers.isNotEmpty()) {
+            upsertParticipants(newUsers)
+            val crossRefs = newUsers.map { participant ->
+                ChatRoomParticipantCrossRef(chatId = chatRoomId, userId = participant.userId)
+            }
+            upsertCrossRefs(crossRefs)
+        }
+    }
+
+    @Transaction
+    suspend fun handleParticipantLeft(
+        chatRoomId: String,
+        leftUser: ChatParticipantEntity,
+        kickedBy: ChatParticipantEntity? = null
+    ) {
+        kickedBy?.let { upsertParticipant(it) }
+        deleteParticipantCrossRef(chatRoomId = chatRoomId, userId = leftUser.userId)
     }
 }

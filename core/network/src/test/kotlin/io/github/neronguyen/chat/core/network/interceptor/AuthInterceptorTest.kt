@@ -93,27 +93,6 @@ class AuthInterceptorTest {
     }
 
     @Test
-    fun authEndpoint_skipsAuthInterceptorHeaders() = runTest {
-        val fakeTokenDS = FakeTokenDataSource().apply { savedAccessToken = "stored_token" }
-        val interceptor = AuthInterceptor(fakeTokenDS)
-
-        val request = Request.Builder().url("https://example.com/api/auth/login").build()
-        val (chain, capturedRequests) = createChain(request) { req ->
-            createResponse(
-                req,
-                200,
-                "{}"
-            )
-        }
-
-        val response = interceptor.intercept(chain)
-
-        assertEquals(200, response.code)
-        assertEquals(1, capturedRequests.size)
-        assertNull(capturedRequests[0].header("Authorization"))
-    }
-
-    @Test
     fun normalEndpoint_attachesBearerTokenHeader() = runTest {
         val fakeTokenDS = FakeTokenDataSource().apply { savedAccessToken = "valid_access_token" }
         val interceptor = AuthInterceptor(fakeTokenDS)

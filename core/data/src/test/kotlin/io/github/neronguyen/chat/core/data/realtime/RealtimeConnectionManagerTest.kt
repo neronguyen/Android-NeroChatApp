@@ -12,9 +12,11 @@ import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.model.ChatMessageDto
+import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
 import io.github.neronguyen.chat.core.network.model.websocket.WsClientMessage
 import io.github.neronguyen.chat.core.network.model.websocket.WsServerEvent
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -23,13 +25,29 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RealtimeConnectionManagerTest {
+
+    private val testDispatcher = UnconfinedTestDispatcher()
+
+    @BeforeTest
+    fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+    }
+
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
 
     private class FakeChatRealtimeDataSource : ChatRealtimeDataSource {
         val incomingEventsFlow = MutableSharedFlow<WsServerEvent>()
@@ -60,6 +78,10 @@ class RealtimeConnectionManagerTest {
 
     private class FakeChatDao : ChatDao {
         val upsertedMessages = mutableListOf<ChatMessageEntity>()
+        val upsertedParticipants = mutableListOf<ChatParticipantEntity>()
+        val upsertedCrossRefs = mutableListOf<ChatRoomParticipantCrossRef>()
+        val deletedMessages = mutableListOf<String>()
+        val deletedCrossRefs = mutableListOf<Pair<String, String>>()
         var reconciledAck: Triple<String, String, Long>? = null
 
         override fun getChatsWithDetails(): Flow<List<ChatRoomWithDetails>> = emptyFlow()
@@ -69,17 +91,63 @@ class RealtimeConnectionManagerTest {
 
         override suspend fun upsertRoom(room: ChatRoomEntity) {}
         override suspend fun upsertRooms(rooms: List<ChatRoomEntity>) {}
-        override suspend fun upsertParticipant(participant: ChatParticipantEntity) {}
-        override suspend fun upsertParticipants(participants: List<ChatParticipantEntity>) {}
-        override suspend fun upsertCrossRefs(crossRefs: List<ChatRoomParticipantCrossRef>) {}
+        override suspend fun upsertParticipant(participant: ChatParticipantEntity) {
+            upsertedParticipants.add(participant)
+        }
+
+        override suspend fun upsertParticipants(participants: List<ChatParticipantEntity>) {
+            upsertedParticipants.addAll(participants)
+        }
+
+        override suspend fun upsertCrossRefs(crossRefs: List<ChatRoomParticipantCrossRef>) {
+            upsertedCrossRefs.addAll(crossRefs)
+        }
         override suspend fun upsertMessage(message: ChatMessageEntity) {}
 
         override suspend fun upsertMessages(messages: List<ChatMessageEntity>) {
             upsertedMessages.addAll(messages)
         }
 
-        override suspend fun updateDeliveryStatus(messageId: String, status: MessageDeliveryStatus) {}
-        override suspend fun deleteMessage(messageId: String) {}
+        val updatedStatuses = mutableMapOf<String, MessageDeliveryStatus>()
+
+        override suspend fun updateDeliveryStatus(
+            messageId: String,
+            status: MessageDeliveryStatus
+        ) {
+            updatedStatuses[messageId] = status
+        }
+
+        override suspend fun deleteMessage(messageId: String) {
+            deletedMessages.add(messageId)
+        }
+
+        override suspend fun deleteParticipantCrossRef(chatRoomId: String, userId: String) {
+            deletedCrossRefs.add(chatRoomId to userId)
+        }
+
+        override suspend fun handleParticipantJoined(
+            chatRoomId: String,
+            newUsers: List<ChatParticipantEntity>,
+            addedBy: ChatParticipantEntity?
+        ) {
+            addedBy?.let { upsertedParticipants.add(it) }
+            if (newUsers.isNotEmpty()) {
+                upsertedParticipants.addAll(newUsers)
+                val crossRefs = newUsers.map { participant ->
+                    ChatRoomParticipantCrossRef(chatId = chatRoomId, userId = participant.userId)
+                }
+                upsertedCrossRefs.addAll(crossRefs)
+            }
+        }
+
+        override suspend fun handleParticipantLeft(
+            chatRoomId: String,
+            leftUser: ChatParticipantEntity,
+            kickedBy: ChatParticipantEntity?
+        ) {
+            kickedBy?.let { upsertedParticipants.add(it) }
+            deletedCrossRefs.add(chatRoomId to leftUser.userId)
+        }
 
         override suspend fun updateRoomLastActivity(chatRoomId: String, messageId: String, timestamp: Long) {}
 
@@ -109,7 +177,8 @@ class RealtimeConnectionManagerTest {
         val manager = RealtimeConnectionManager(
             realtimeDataSource = fakeDataSource,
             chatDao = fakeDao,
-            appScope = externalScope
+            appScope = externalScope,
+            ioDispatcher = testDispatcher
         )
 
         val owner = FakeLifecycleOwner()
@@ -143,7 +212,8 @@ class RealtimeConnectionManagerTest {
         val manager = RealtimeConnectionManager(
             realtimeDataSource = fakeDataSource,
             chatDao = fakeDao,
-            appScope = externalScope
+            appScope = externalScope,
+            ioDispatcher = testDispatcher
         )
 
         val owner = FakeLifecycleOwner()
@@ -160,9 +230,111 @@ class RealtimeConnectionManagerTest {
         fakeDataSource.incomingEventsFlow.emit(WsServerEvent.NewMessage(messageDto))
 
         testScheduler.advanceUntilIdle()
-        assertEquals(1, fakeDao.upsertedMessages.size)
-        assertEquals("msg-123", fakeDao.upsertedMessages[0].id)
-        assertEquals("Hello", fakeDao.upsertedMessages[0].content)
+        assertEquals(Triple("room-1", "msg-123", 2000L), fakeDao.reconciledAck)
+    }
+
+    @Test
+    fun `onStart handles MessageDeleted event and updates message status to DELETED in DAO`() =
+        runTest {
+            val testDispatcher = UnconfinedTestDispatcher(testScheduler)
+            val externalScope = TestScope(testDispatcher)
+            val fakeDataSource = FakeChatRealtimeDataSource()
+            val fakeDao = FakeChatDao()
+
+            val manager = RealtimeConnectionManager(
+                realtimeDataSource = fakeDataSource,
+                chatDao = fakeDao,
+                appScope = externalScope,
+                ioDispatcher = testDispatcher
+            )
+
+            val owner = FakeLifecycleOwner()
+            manager.onStart(owner)
+
+            fakeDataSource.incomingEventsFlow.emit(
+                WsServerEvent.MessageDeleted(chatRoomId = "room-1", messageId = "msg-999")
+            )
+
+            testScheduler.advanceUntilIdle()
+            assertEquals(MessageDeliveryStatus.DELETED, fakeDao.updatedStatuses["msg-999"])
+        }
+
+    @Test
+    fun `onStart handles ParticipantJoined event and upserts participants and cross refs`() =
+        runTest {
+            val testDispatcher = UnconfinedTestDispatcher(testScheduler)
+            val externalScope = TestScope(testDispatcher)
+            val fakeDataSource = FakeChatRealtimeDataSource()
+            val fakeDao = FakeChatDao()
+
+            val manager = RealtimeConnectionManager(
+                realtimeDataSource = fakeDataSource,
+                chatDao = fakeDao,
+                appScope = externalScope,
+                ioDispatcher = testDispatcher
+            )
+
+            val owner = FakeLifecycleOwner()
+            manager.onStart(owner)
+
+            val newParticipant = ChatParticipantDto(
+                userId = "user-2",
+                email = "p2@test.com",
+                displayName = "Participant 2"
+            )
+            val addedBy = ChatParticipantDto(
+                userId = "user-1",
+                email = "p1@test.com",
+                displayName = "Participant 1"
+            )
+
+            fakeDataSource.incomingEventsFlow.emit(
+                WsServerEvent.ParticipantJoined(
+                    chatRoomId = "room-1",
+                    newUsers = listOf(newParticipant),
+                    addedBy = addedBy
+                )
+            )
+
+            testScheduler.advanceUntilIdle()
+            assertEquals(2, fakeDao.upsertedParticipants.size)
+            assertEquals(1, fakeDao.upsertedCrossRefs.size)
+            assertEquals("room-1", fakeDao.upsertedCrossRefs[0].chatId)
+            assertEquals("user-2", fakeDao.upsertedCrossRefs[0].userId)
+        }
+
+    @Test
+    fun `onStart handles ParticipantLeft event and deletes participant cross ref`() = runTest {
+        val testDispatcher = UnconfinedTestDispatcher(testScheduler)
+        val externalScope = TestScope(testDispatcher)
+        val fakeDataSource = FakeChatRealtimeDataSource()
+        val fakeDao = FakeChatDao()
+
+        val manager = RealtimeConnectionManager(
+            realtimeDataSource = fakeDataSource,
+            chatDao = fakeDao,
+            appScope = externalScope,
+            ioDispatcher = testDispatcher
+        )
+
+        val owner = FakeLifecycleOwner()
+        manager.onStart(owner)
+
+        val leftUser = ChatParticipantDto(
+            userId = "user-2",
+            email = "p2@test.com",
+            displayName = "Participant 2"
+        )
+
+        fakeDataSource.incomingEventsFlow.emit(
+            WsServerEvent.ParticipantLeft(
+                chatRoomId = "room-1",
+                leftUser = leftUser
+            )
+        )
+
+        testScheduler.advanceUntilIdle()
+        assertEquals(listOf("room-1" to "user-2"), fakeDao.deletedCrossRefs)
     }
 
     @Test
@@ -175,7 +347,8 @@ class RealtimeConnectionManagerTest {
         val manager = RealtimeConnectionManager(
             realtimeDataSource = fakeDataSource,
             chatDao = fakeDao,
-            appScope = externalScope
+            appScope = externalScope,
+            ioDispatcher = testDispatcher
         )
 
         val owner = FakeLifecycleOwner()

@@ -3,7 +3,8 @@ package io.github.neronguyen.chat.core.model
 enum class MessageDeliveryStatus {
     SENDING,
     SENT,
-    FAILED
+    FAILED,
+    DELETED
 
     // TODO(future): Expand delivery lifecycle once backend supports receipt events:
     // - DELIVERED: Message reached recipient device (double grey checkmark).
