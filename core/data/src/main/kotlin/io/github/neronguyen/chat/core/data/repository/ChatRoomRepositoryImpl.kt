@@ -118,6 +118,11 @@ internal class ChatRoomRepositoryImpl @Inject constructor(
         )
 
         chatDao.upsertMessage(sendingEntity)
+        chatDao.updateRoomLastActivity(
+            chatRoomId = chatRoomId,
+            messageId = messageId,
+            timestamp = now
+        )
 
         return realtimeDataSource.sendMessage(
             WsClientMessage.NewMessage(

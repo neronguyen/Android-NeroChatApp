@@ -43,6 +43,9 @@ class ChatRoomRepositoryImplTest {
     private class FakeChatDao : ChatDao {
         val insertedMessages = mutableListOf<ChatMessageEntity>()
         val updatedStatuses = mutableMapOf<String, MessageDeliveryStatus>()
+        var lastUpdatedRoomId: String? = null
+        var lastUpdatedRoomMessageId: String? = null
+        var lastUpdatedRoomTimestamp: Long? = null
 
         override fun getChatsWithDetails(): Flow<List<ChatRoomWithDetails>> = emptyFlow()
         override fun getChatWithDetails(chatRoomId: String): Flow<ChatRoomWithDetails?> = emptyFlow()
@@ -81,7 +84,15 @@ class ChatRoomRepositoryImplTest {
         ) {
         }
 
-        override suspend fun updateRoomLastActivity(chatRoomId: String, messageId: String, timestamp: Long) {}
+        override suspend fun updateRoomLastActivity(
+            chatRoomId: String,
+            messageId: String,
+            timestamp: Long
+        ) {
+            lastUpdatedRoomId = chatRoomId
+            lastUpdatedRoomMessageId = messageId
+            lastUpdatedRoomTimestamp = timestamp
+        }
 
         override suspend fun updateMessageStatusAndTimestamp(messageId: String, timestamp: Long, status: MessageDeliveryStatus) {}
     }
@@ -287,6 +298,10 @@ class ChatRoomRepositoryImplTest {
         assertEquals("room1", insertedMsg.chatRoomId)
         assertEquals("Hello World", insertedMsg.content)
         assertEquals(MessageDeliveryStatus.SENDING, insertedMsg.deliveryStatus)
+
+        assertEquals("room1", fakeDao.lastUpdatedRoomId)
+        assertEquals(insertedMsg.id, fakeDao.lastUpdatedRoomMessageId)
+        assertEquals(insertedMsg.timestamp, fakeDao.lastUpdatedRoomTimestamp)
 
         assertNull(fakeDao.updatedStatuses[insertedMsg.id])
     }
