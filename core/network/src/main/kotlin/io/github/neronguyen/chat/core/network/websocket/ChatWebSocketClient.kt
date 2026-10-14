@@ -5,7 +5,7 @@ import io.github.neronguyen.chat.core.datastore.TokenDataSource
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.BuildConfig
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
-import io.github.neronguyen.chat.core.network.di.AuthenticatedOkHttp
+import io.github.neronguyen.chat.core.network.di.RealtimeOkHttp
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState.Connected
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState.Connecting
@@ -37,7 +37,7 @@ import kotlin.coroutines.cancellation.CancellationException
 @OptIn(ExperimentalAtomicApi::class)
 @Singleton
 internal class ChatWebSocketClient @Inject constructor(
-    @AuthenticatedOkHttp private val okHttpClient: OkHttpClient,
+    @RealtimeOkHttp private val okHttpClient: OkHttpClient,
     private val tokenDataSource: TokenDataSource,
 ) : ChatRealtimeDataSource {
 

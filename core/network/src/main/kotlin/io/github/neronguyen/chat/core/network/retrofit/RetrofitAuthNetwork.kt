@@ -5,7 +5,7 @@ import arrow.core.raise.either
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.AuthNetworkDataSource
 import io.github.neronguyen.chat.core.network.BuildConfig
-import io.github.neronguyen.chat.core.network.di.AuthOkHttp
+import io.github.neronguyen.chat.core.network.di.BaseOkHttp
 import io.github.neronguyen.chat.core.network.model.AuthenticatedUserDto
 import io.github.neronguyen.chat.core.network.model.LoginRequest
 import io.github.neronguyen.chat.core.network.model.RefreshTokenRequest
@@ -49,7 +49,7 @@ private interface RetrofitAuthNetworkApi {
 @Singleton
 internal class RetrofitAuthNetwork @Inject constructor(
     networkJson: Json,
-    @AuthOkHttp okHttpClient: dagger.Lazy<OkHttpClient>
+    @BaseOkHttp okHttpClient: dagger.Lazy<OkHttpClient>
 ) : AuthNetworkDataSource {
 
     private val networkApi: RetrofitAuthNetworkApi by lazy {

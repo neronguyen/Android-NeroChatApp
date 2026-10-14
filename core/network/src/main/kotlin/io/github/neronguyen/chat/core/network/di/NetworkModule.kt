@@ -23,6 +23,7 @@ import jakarta.inject.Singleton
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
 @Module
@@ -51,8 +52,8 @@ internal abstract class NetworkModule {
 
         @Provides
         @Singleton
-        @AuthOkHttp
-        fun provideAuthOkHttpClient(): OkHttpClient {
+        @BaseOkHttp
+        fun provideBaseOkHttpClient(): OkHttpClient {
             return OkHttpClient.Builder()
                 .addInterceptor(
                     HttpLoggingInterceptor().apply {
@@ -64,7 +65,6 @@ internal abstract class NetworkModule {
                     }
                 )
                 .callTimeout(15.seconds)
-                .pingInterval(30.seconds)
                 .build()
         }
 
@@ -72,7 +72,7 @@ internal abstract class NetworkModule {
         @Singleton
         @AuthenticatedOkHttp
         fun provideAuthenticatedOkHttpClient(
-            @AuthOkHttp baseClient: OkHttpClient,
+            @BaseOkHttp baseClient: OkHttpClient,
             authInterceptor: AuthInterceptor,
             tokenAuthenticator: TokenAuthenticator
         ): OkHttpClient {
@@ -84,9 +84,20 @@ internal abstract class NetworkModule {
 
         @Provides
         @Singleton
+        @RealtimeOkHttp
+        fun provideRealtimeOkHttpClient(
+            @AuthenticatedOkHttp client: OkHttpClient
+        ): OkHttpClient = client.newBuilder()
+            .callTimeout(0, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.SECONDS)
+            .pingInterval(30.seconds)
+            .build()
+
+        @Provides
+        @Singleton
         fun provideImageLoader(
             @ApplicationContext context: Context,
-            @AuthOkHttp okHttpClient: OkHttpClient
+            @BaseOkHttp okHttpClient: OkHttpClient
         ): ImageLoader {
             return ImageLoader.Builder(context)
                 .components {

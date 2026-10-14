@@ -4,8 +4,12 @@ import javax.inject.Qualifier
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
-annotation class AuthOkHttp
+annotation class BaseOkHttp
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class AuthenticatedOkHttp
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class RealtimeOkHttp
