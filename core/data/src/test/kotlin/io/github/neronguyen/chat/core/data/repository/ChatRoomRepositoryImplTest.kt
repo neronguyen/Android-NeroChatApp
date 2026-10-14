@@ -21,11 +21,13 @@ import io.github.neronguyen.chat.core.network.model.ChatRoomDto
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
 import io.github.neronguyen.chat.core.network.model.websocket.WsClientMessage
 import io.github.neronguyen.chat.core.network.model.websocket.WsServerEvent
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -33,7 +35,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ChatRoomRepositoryImplTest {
+
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     private class FakeChatDao : ChatDao {
         val insertedMessages = mutableListOf<ChatMessageEntity>()
@@ -171,7 +176,8 @@ class ChatRoomRepositoryImplTest {
             chatDao = fakeDao,
             realtimeDataSource = fakeRealtime,
             networkDataSource = fakeNetwork,
-            tokenDataSource = fakeToken
+            tokenDataSource = fakeToken,
+            defaultDispatcher = testDispatcher
         )
 
         val result = repository.findChatParticipantByEmail("abc@example.com")
@@ -210,7 +216,8 @@ class ChatRoomRepositoryImplTest {
             chatDao = fakeDao,
             realtimeDataSource = fakeRealtime,
             networkDataSource = fakeNetwork,
-            tokenDataSource = fakeToken
+            tokenDataSource = fakeToken,
+            defaultDispatcher = testDispatcher
         )
 
         val result = repository.createDirectChatRoom(targetId, "hello")
@@ -248,7 +255,8 @@ class ChatRoomRepositoryImplTest {
             chatDao = fakeDao,
             realtimeDataSource = fakeRealtime,
             networkDataSource = fakeNetwork,
-            tokenDataSource = fakeToken
+            tokenDataSource = fakeToken,
+            defaultDispatcher = testDispatcher
         )
 
         val result = repository.createGroupChatRoom(participantIds, "  Group Test  ")
@@ -269,7 +277,8 @@ class ChatRoomRepositoryImplTest {
             chatDao = fakeDao,
             realtimeDataSource = fakeRealtime,
             networkDataSource = fakeNetwork,
-            tokenDataSource = fakeToken
+            tokenDataSource = fakeToken,
+            defaultDispatcher = testDispatcher
         )
 
         val result = repository.sendMessage("room1", "Hello World")
@@ -296,7 +305,8 @@ class ChatRoomRepositoryImplTest {
             chatDao = fakeDao,
             realtimeDataSource = fakeRealtime,
             networkDataSource = fakeNetwork,
-            tokenDataSource = fakeToken
+            tokenDataSource = fakeToken,
+            defaultDispatcher = testDispatcher
         )
 
         val result = repository.sendMessage("room1", "Hello World")
@@ -320,7 +330,8 @@ class ChatRoomRepositoryImplTest {
             chatDao = fakeDao,
             realtimeDataSource = fakeRealtime,
             networkDataSource = fakeNetwork,
-            tokenDataSource = fakeToken
+            tokenDataSource = fakeToken,
+            defaultDispatcher = testDispatcher
         )
 
         val result = repository.sendMessage("room1", "Hello World")

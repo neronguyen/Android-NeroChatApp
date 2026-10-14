@@ -1,6 +1,8 @@
 package io.github.neronguyen.chat.core.data.repository
 
 import arrow.core.Either
+import io.github.neronguyen.chat.core.common.network.ChatDispatchers
+import io.github.neronguyen.chat.core.common.network.Dispatcher
 import io.github.neronguyen.chat.core.data.mapper.toDomain
 import io.github.neronguyen.chat.core.data.mapper.toEntity
 import io.github.neronguyen.chat.core.database.dao.ChatDao
@@ -16,8 +18,10 @@ import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.model.ChatRoomDto
 import io.github.neronguyen.chat.core.network.model.websocket.WsClientMessage
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,19 +33,20 @@ internal class ChatRoomRepositoryImpl @Inject constructor(
     private val chatDao: ChatDao,
     private val realtimeDataSource: ChatRealtimeDataSource,
     private val networkDataSource: ChatNetworkDataSource,
-    private val tokenDataSource: TokenDataSource
+    private val tokenDataSource: TokenDataSource,
+    @Dispatcher(ChatDispatchers.Default) private val defaultDispatcher: CoroutineDispatcher
 ) : ChatRoomRepository {
 
     override fun getMessages(chatRoomId: String): Flow<List<ChatMessage>> {
         return chatDao.getRecentMessages(chatRoomId).map { entities ->
             entities.map { it.toDomain() }
-        }
+        }.flowOn(defaultDispatcher)
     }
 
     override fun getChats(): Flow<List<ChatRoom>> {
         return chatDao.getChatsWithDetails().map { relations ->
             relations.map { it.toDomain() }
-        }
+        }.flowOn(defaultDispatcher)
     }
 
     override suspend fun syncRecentMessages(chatRoomId: String): Either<DataError.Network, Unit> {

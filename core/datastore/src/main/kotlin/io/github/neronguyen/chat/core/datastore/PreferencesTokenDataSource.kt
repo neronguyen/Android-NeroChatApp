@@ -17,11 +17,10 @@ import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.security.CryptoManager
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
@@ -81,54 +80,59 @@ internal class PreferencesTokenDataSource @Inject constructor(
                 cachedAccessToken.set(null)
             }
         }
+        .flowOn(ioDispatcher)
 
-    override suspend fun getAccessToken(): String? {
+    override suspend fun getAccessToken(): String? = withContext(ioDispatcher) {
         val cached = cachedAccessToken.get()
-        if (!cached.isNullOrBlank()) return cached
+        if (!cached.isNullOrBlank()) return@withContext cached
 
-        val preferences = dataStore.data.firstOrNull() ?: return null
-        val encrypted = preferences[KEY_ENCRYPTED_ACCESS_TOKEN] ?: return null
+        val preferences = dataStore.data.firstOrNull() ?: return@withContext null
+        val encrypted = preferences[KEY_ENCRYPTED_ACCESS_TOKEN] ?: return@withContext null
         val decrypted = decryptString(encrypted).ifBlank { null }
         cachedAccessToken.set(decrypted)
-        return decrypted
+        decrypted
     }
 
-    override suspend fun getRefreshToken(): String? {
-        val preferences = dataStore.data.firstOrNull() ?: return null
-        val encrypted = preferences[KEY_ENCRYPTED_REFRESH_TOKEN] ?: return null
-        return decryptString(encrypted).ifBlank { null }
+    override suspend fun getRefreshToken(): String? = withContext(ioDispatcher) {
+        val preferences = dataStore.data.firstOrNull() ?: return@withContext null
+        val encrypted = preferences[KEY_ENCRYPTED_REFRESH_TOKEN] ?: return@withContext null
+        decryptString(encrypted).ifBlank { null }
     }
 
-    override suspend fun saveAuthData(user: User, accessToken: String, refreshToken: String) {
-        cachedAccessToken.set(accessToken)
-        val encryptedAccessToken = encryptString(accessToken)
-        val encryptedRefreshToken = encryptString(refreshToken)
+    override suspend fun saveAuthData(user: User, accessToken: String, refreshToken: String) =
+        withContext(ioDispatcher) {
+            cachedAccessToken.set(accessToken)
+            val encryptedAccessToken = encryptString(accessToken)
+            val encryptedRefreshToken = encryptString(refreshToken)
 
-        val userData = UserData(
-            userId = user.id,
-            email = user.email,
-            displayName = user.displayName,
-            isEmailVerified = user.isEmailVerified,
-        )
-        val userDataJson = json.encodeToString(UserData.serializer(), userData)
+            val userData = UserData(
+                userId = user.id,
+                email = user.email,
+                displayName = user.displayName,
+                isEmailVerified = user.isEmailVerified,
+            )
+            val userDataJson = json.encodeToString(UserData.serializer(), userData)
 
-        dataStore.edit { preferences ->
-            preferences[KEY_ENCRYPTED_ACCESS_TOKEN] = encryptedAccessToken
-            preferences[KEY_ENCRYPTED_REFRESH_TOKEN] = encryptedRefreshToken
-            preferences[KEY_USER_DATA] = userDataJson
+            dataStore.edit { preferences ->
+                preferences[KEY_ENCRYPTED_ACCESS_TOKEN] = encryptedAccessToken
+                preferences[KEY_ENCRYPTED_REFRESH_TOKEN] = encryptedRefreshToken
+                preferences[KEY_USER_DATA] = userDataJson
+            }
+            Unit
         }
-    }
 
-    override suspend fun saveTokens(accessToken: String, refreshToken: String) {
-        cachedAccessToken.set(accessToken)
-        val encryptedAccessToken = encryptString(accessToken)
-        val encryptedRefreshToken = encryptString(refreshToken)
+    override suspend fun saveTokens(accessToken: String, refreshToken: String) =
+        withContext(ioDispatcher) {
+            cachedAccessToken.set(accessToken)
+            val encryptedAccessToken = encryptString(accessToken)
+            val encryptedRefreshToken = encryptString(refreshToken)
 
-        dataStore.edit { preferences ->
-            preferences[KEY_ENCRYPTED_ACCESS_TOKEN] = encryptedAccessToken
-            preferences[KEY_ENCRYPTED_REFRESH_TOKEN] = encryptedRefreshToken
+            dataStore.edit { preferences ->
+                preferences[KEY_ENCRYPTED_ACCESS_TOKEN] = encryptedAccessToken
+                preferences[KEY_ENCRYPTED_REFRESH_TOKEN] = encryptedRefreshToken
+            }
+            Unit
         }
-    }
 
     override suspend fun clearAuthData() {
         cachedAccessToken.set(null)
@@ -137,27 +141,24 @@ internal class PreferencesTokenDataSource @Inject constructor(
         }
     }
 
-    private suspend fun encryptString(rawText: String): String =
-        withContext(ioDispatcher) {
-            if (rawText.isEmpty()) return@withContext ""
+    private fun encryptString(rawText: String): String {
+        if (rawText.isEmpty()) return ""
 
-            val encryptedBytes = cryptoManager.encrypt(rawText.encodeToByteArray())
-            Base64.encodeToString(encryptedBytes, Base64.NO_WRAP)
+        val encryptedBytes = cryptoManager.encrypt(rawText.encodeToByteArray())
+        return Base64.encodeToString(encryptedBytes, Base64.NO_WRAP)
+    }
+
+    private fun decryptString(encryptedBase64: String): String {
+        if (encryptedBase64.isEmpty()) return ""
+
+        return try {
+            val encryptedBytes = Base64.decode(encryptedBase64, Base64.NO_WRAP)
+            val decryptedBytes = cryptoManager.decrypt(encryptedBytes)
+            decryptedBytes.decodeToString()
+        } catch (_: Exception) {
+            ""
         }
-
-    private suspend fun decryptString(encryptedBase64: String): String =
-        withContext(ioDispatcher) {
-            if (encryptedBase64.isEmpty()) return@withContext ""
-
-            try {
-                val encryptedBytes = Base64.decode(encryptedBase64, Base64.NO_WRAP)
-                val decryptedBytes = cryptoManager.decrypt(encryptedBytes)
-                decryptedBytes.decodeToString()
-            } catch (_: Exception) {
-                currentCoroutineContext().ensureActive()
-                ""
-            }
-        }
+    }
 
     companion object {
         private val KEY_ENCRYPTED_ACCESS_TOKEN = stringPreferencesKey("encrypted_access_token")
