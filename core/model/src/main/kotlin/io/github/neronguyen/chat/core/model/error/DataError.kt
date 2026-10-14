@@ -6,8 +6,11 @@ sealed interface DataError {
         NoInternet,
         RequestTimeout,
         Serialization,
-        SocketError,
         Unknown
+    }
+
+    enum class Realtime : DataError {
+        SocketError
     }
 
     enum class Local : DataError {

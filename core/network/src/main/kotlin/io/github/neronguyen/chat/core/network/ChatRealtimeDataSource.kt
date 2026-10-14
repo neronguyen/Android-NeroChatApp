@@ -17,5 +17,5 @@ interface ChatRealtimeDataSource {
 
     suspend fun sendMessage(
         message: WsClientMessage
-    ): Either<DataError.Network, Unit>
+    ): Either<DataError.Realtime, Unit>
 }

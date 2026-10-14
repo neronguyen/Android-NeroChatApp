@@ -110,10 +110,10 @@ internal class ChatWebSocketClient @Inject constructor(
 
     override suspend fun sendMessage(
         message: WsClientMessage
-    ): Either<DataError.Network, Unit> {
-        val socket = webSocket.load() ?: return Either.Left(DataError.Network.SocketError)
+    ): Either<DataError.Realtime, Unit> {
+        val socket = webSocket.load() ?: return Either.Left(DataError.Realtime.SocketError)
         if (_connectionState.value !is Connected) {
-            return Either.Left(DataError.Network.SocketError)
+            return Either.Left(DataError.Realtime.SocketError)
         }
 
         return try {
@@ -122,12 +122,12 @@ internal class ChatWebSocketClient @Inject constructor(
             if (enqueued) {
                 Either.Right(Unit)
             } else {
-                Either.Left(DataError.Network.SocketError)
+                Either.Left(DataError.Realtime.SocketError)
             }
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
-            Either.Left(DataError.Network.SocketError)
+            Either.Left(DataError.Realtime.SocketError)
         }
     }
 

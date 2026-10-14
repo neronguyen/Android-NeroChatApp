@@ -97,11 +97,11 @@ class ChatRoomRepositoryImplTest {
 
         override suspend fun sendMessage(
             message: WsClientMessage
-        ): Either<DataError.Network, Unit> {
+        ): Either<DataError.Realtime, Unit> {
             return if (shouldSucceed) {
                 Either.Right(Unit)
             } else {
-                Either.Left(DataError.Network.SocketError)
+                Either.Left(DataError.Realtime.SocketError)
             }
         }
     }
@@ -309,7 +309,7 @@ class ChatRoomRepositoryImplTest {
         val result = repository.sendMessage("room1", "Hello World")
 
         assertTrue(result.isLeft())
-        assertEquals(DataError.Network.SocketError, result.leftOrNull())
+        assertEquals(DataError.Realtime.SocketError, result.leftOrNull())
         assertEquals(1, fakeDao.insertedMessages.size)
 
         val insertedMsg = fakeDao.insertedMessages.first()

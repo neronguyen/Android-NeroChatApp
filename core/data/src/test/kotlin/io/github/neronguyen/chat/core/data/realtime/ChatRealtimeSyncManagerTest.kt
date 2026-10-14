@@ -61,7 +61,7 @@ class ChatRealtimeSyncManagerTest {
 
         override suspend fun sendMessage(
             message: WsClientMessage
-        ): Either<DataError.Network, Unit> {
+        ): Either<DataError.Realtime, Unit> {
             return Either.Right(Unit)
         }
     }

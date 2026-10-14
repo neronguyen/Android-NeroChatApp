@@ -89,7 +89,16 @@ internal class AuthRepositoryImpl @Inject constructor(
             val result = networkDataSource.refreshToken(RefreshTokenRequest(currentRefreshToken))
             result.fold(
                 ifLeft = { error ->
-                    tokenDataSource.clearAuthData()
+                    when (error) {
+                        DataError.Network.NoInternet,
+                        DataError.Network.RequestTimeout -> {
+                            // Transient network errors; preserve stored auth data
+                        }
+
+                        else -> {
+                            tokenDataSource.clearAuthData()
+                        }
+                    }
                     Either.Left(error)
                 },
                 ifRight = { response ->
