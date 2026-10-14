@@ -9,7 +9,6 @@ import io.github.neronguyen.chat.core.database.entity.ChatRoomParticipantCrossRe
 import io.github.neronguyen.chat.core.database.model.ChatRoomWithDetails
 import io.github.neronguyen.chat.core.datastore.TokenDataSource
 import io.github.neronguyen.chat.core.model.AuthState
-import io.github.neronguyen.chat.core.model.ChatRoomType
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.DataError
@@ -206,7 +205,7 @@ class ChatRoomRepositoryImplTest {
             directChatResponse = Either.Right(
                 ChatRoomDto(
                     id = "room1",
-                    type = ChatRoomType.DIRECT,
+                    rawType = "DIRECT",
                     name = null,
                     creator = ChatParticipantDto("user123", "me@example.com", "Me"),
                     participants = listOf(
@@ -244,7 +243,7 @@ class ChatRoomRepositoryImplTest {
             groupChatResponse = Either.Right(
                 ChatRoomDto(
                     id = "group-room-1",
-                    type = ChatRoomType.GROUP,
+                    rawType = "GROUP",
                     name = "Group Test",
                     creator = ChatParticipantDto("user123", "me@example.com", "Me"),
                     participants = listOf(

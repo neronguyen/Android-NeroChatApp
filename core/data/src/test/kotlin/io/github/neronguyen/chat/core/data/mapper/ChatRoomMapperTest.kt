@@ -4,8 +4,6 @@ import io.github.neronguyen.chat.core.database.entity.ChatMessageEntity
 import io.github.neronguyen.chat.core.database.entity.ChatParticipantEntity
 import io.github.neronguyen.chat.core.database.entity.ChatRoomEntity
 import io.github.neronguyen.chat.core.database.model.ChatRoomWithDetails
-import io.github.neronguyen.chat.core.model.ChatParticipant
-import io.github.neronguyen.chat.core.model.ChatRoom
 import io.github.neronguyen.chat.core.model.ChatRoomType
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.network.model.ChatMessageDto
@@ -137,7 +135,7 @@ class ChatRoomMapperTest {
         )
         val chatRoomDto = ChatRoomDto(
             id = "room10",
-            type = ChatRoomType.GROUP,
+            rawType = "GROUP",
             name = "Group Chat",
             creator = participantDto,
             participants = listOf(participantDto),
@@ -161,6 +159,34 @@ class ChatRoomMapperTest {
         assertEquals("creator1", entityRoom.creatorId)
         assertEquals("lastMsg1", entityRoom.lastMessageId)
         assertEquals(activityTime.toEpochMilliseconds(), entityRoom.lastActivityAt)
+    }
+
+    @Test
+    fun `ChatRoomDto toDomain and toEntity handle unrecognized room type gracefully`() {
+        val activityTime = Instant.fromEpochMilliseconds(123456789L)
+        val participantDto = ChatParticipantDto(
+            userId = "creator1",
+            email = "creator@example.com",
+            displayName = "Creator User",
+            profilePictureUrl = null
+        )
+        val chatRoomDto = ChatRoomDto(
+            id = "room_unknown",
+            rawType = "UNKNOWN_SERVER_TYPE",
+            name = "Channel",
+            creator = participantDto,
+            participants = listOf(participantDto),
+            lastMessage = null,
+            lastActivityAt = activityTime
+        )
+
+        val domainRoom = chatRoomDto.toDomain()
+        assertEquals("room_unknown", domainRoom.id)
+        assertEquals(ChatRoomType.UNKNOWN, domainRoom.type)
+
+        val entityRoom = chatRoomDto.toEntity()
+        assertEquals("room_unknown", entityRoom.id)
+        assertEquals(ChatRoomType.UNKNOWN, entityRoom.type)
     }
 
     @Test
