@@ -10,15 +10,18 @@ import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
+@OptIn(ExperimentalAtomicApi::class)
 @Singleton
 class RealtimeConnectionManager @Inject constructor(
     private val realtimeDataSource: ChatRealtimeDataSource,
@@ -26,58 +29,54 @@ class RealtimeConnectionManager @Inject constructor(
     @Dispatcher(ChatDispatchers.IO) private val ioDispatcher: CoroutineDispatcher
 ) : DefaultLifecycleObserver {
 
-    private var connectionSupervisorJob: Job? = null
-    private var disconnectJob: Job? = null
+    private val isForeground = MutableStateFlow(false)
+    private val initialized = AtomicBoolean(false)
 
     fun initialize() {
+        if (!initialized.compareAndSet(expectedValue = false, newValue = true)) return
+
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
-    }
 
-    override fun onStart(owner: LifecycleOwner) {
-        disconnectJob?.cancel()
-        disconnectJob = null
-        startConnectionSupervision()
-    }
-
-    override fun onStop(owner: LifecycleOwner) {
-        disconnectJob?.cancel()
-        disconnectJob = appScope.launch(ioDispatcher) {
-            delay(DISCONNECT_DELAY_MS.milliseconds)
-            connectionSupervisorJob?.cancel()
-            connectionSupervisorJob = null
-            realtimeDataSource.disconnect()
+        appScope.launch(ioDispatcher) {
+            isForeground.collectLatest { foreground ->
+                if (foreground) {
+                    superviseConnection()
+                } else {
+                    delay(DISCONNECT_DELAY_MS.milliseconds)
+                    realtimeDataSource.disconnect()
+                }
+            }
         }
     }
 
-    private fun startConnectionSupervision() {
-        if (connectionSupervisorJob?.isActive == true) return
+    override fun onStart(owner: LifecycleOwner) {
+        isForeground.value = true
+    }
 
-        connectionSupervisorJob = appScope.launch(ioDispatcher) {
-            var retryAttempt = 0
+    override fun onStop(owner: LifecycleOwner) {
+        isForeground.value = false
+    }
 
-            realtimeDataSource.connectionState.collectLatest { state ->
-                when (state) {
-                    is SocketConnectionState.Connected -> {
-                        retryAttempt = 0
-                    }
+    private suspend fun superviseConnection() {
+        var retryAttempt = 0
 
-                    is SocketConnectionState.Failed,
-                    is SocketConnectionState.Disconnected -> {
-                        if (retryAttempt == 0) {
-                            retryAttempt++
-                            realtimeDataSource.connect()
-                            return@collectLatest
-                        }
-
-                        retryAttempt++
-                        delay(calculateBackoffDelay(retryAttempt).milliseconds)
-                        realtimeDataSource.connect()
-                    }
-
-                    is SocketConnectionState.Connecting -> {
-                        // Ignore
-                    }
+        realtimeDataSource.connectionState.collect { state ->
+            when (state) {
+                is SocketConnectionState.Connected -> {
+                    retryAttempt = 0
                 }
+
+                is SocketConnectionState.Failed,
+                is SocketConnectionState.Disconnected -> {
+                    if (retryAttempt > 0) {
+                        delay(calculateBackoffDelay(retryAttempt).milliseconds)
+                    }
+
+                    retryAttempt++
+                    realtimeDataSource.connect()
+                }
+
+                is SocketConnectionState.Connecting -> Unit
             }
         }
     }
@@ -85,11 +84,8 @@ class RealtimeConnectionManager @Inject constructor(
     private fun calculateBackoffDelay(attempt: Int): Long {
         val baseDelayMs = 1_000L
         val maxDelayMs = 30_000L
-
-        // 2^attempt * baseDelay
         val expDelay = baseDelayMs * (1L shl attempt.coerceAtMost(5))
         val cappedDelay = expDelay.coerceAtMost(maxDelayMs)
-
         val jitter = (cappedDelay * 0.2 * Random.nextDouble(-1.0, 1.0)).toLong()
         return (cappedDelay + jitter).coerceAtLeast(baseDelayMs)
     }
