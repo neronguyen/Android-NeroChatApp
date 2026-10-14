@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.shareIn
@@ -50,11 +51,8 @@ internal class PreferencesTokenDataSource @Inject constructor(
 
     override val authState: Flow<AuthState> = dataStore.data
         .catch { exception ->
-            if (exception is IOException) {
-                emit(emptyPreferences())
-            } else {
-                throw exception
-            }
+            if (exception is IOException) emit(emptyPreferences())
+            else throw exception
         }
         .map { preferences ->
             val encryptedAccessToken = preferences[KEY_ENCRYPTED_ACCESS_TOKEN]
@@ -76,12 +74,10 @@ internal class PreferencesTokenDataSource @Inject constructor(
             }
         }
         .onEach { state ->
-            if (state is AuthState.Authenticated) {
-                cachedAccessToken.set(state.accessToken)
-            } else {
-                cachedAccessToken.set(null)
-            }
+            if (state is AuthState.Authenticated) cachedAccessToken.set(state.accessToken)
+            else cachedAccessToken.set(null)
         }
+        .flowOn(context = ioDispatcher)
         .shareIn(
             scope = appScope,
             started = SharingStarted.Eagerly,
