@@ -23,8 +23,6 @@ class AuthInterceptorTest {
         var savedAccessToken: String? = null
 
         override val authState: Flow<AuthState> = emptyFlow()
-        override val currentAccessToken: String?
-            get() = savedAccessToken
 
         override suspend fun getRefreshToken(): String? = null
         override suspend fun getAccessToken(): String? = savedAccessToken
