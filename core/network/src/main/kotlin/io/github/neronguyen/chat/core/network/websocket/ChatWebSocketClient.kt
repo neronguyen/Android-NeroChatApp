@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
@@ -33,7 +32,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
-import kotlin.concurrent.atomics.update
+import kotlin.coroutines.cancellation.CancellationException
 
 @OptIn(ExperimentalAtomicApi::class)
 @Singleton
@@ -48,15 +47,15 @@ internal class ChatWebSocketClient @Inject constructor(
     }
 
     private val connectMutex = Mutex()
-    private var webSocket = AtomicReference<WebSocket?>(null)
+    private val webSocket = AtomicReference<WebSocket?>(null)
 
     private val _connectionState =
-        MutableStateFlow<SocketConnectionState>(SocketConnectionState.Disconnected)
+        MutableStateFlow<SocketConnectionState>(Disconnected)
     override val connectionState: StateFlow<SocketConnectionState> = _connectionState.asStateFlow()
 
     private val _incomingEvents = MutableSharedFlow<WsServerEvent>(
         replay = 0,
-        extraBufferCapacity = 64,
+        extraBufferCapacity = 256,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
     override val incomingEvents: Flow<WsServerEvent> = _incomingEvents.asSharedFlow()
@@ -66,17 +65,29 @@ internal class ChatWebSocketClient @Inject constructor(
             return@withLock
         }
 
-        if (_connectionState.value is Connected || _connectionState.value is Connecting) {
+        val currentState = _connectionState.value
+        if (currentState is Connected || currentState is Connecting) {
             return@withLock
         }
 
-        _connectionState.update { Connecting }
+        _connectionState.value = Connecting
 
-        val token = tokenDataSource.getAccessToken()
+        val token = try {
+            tokenDataSource.getAccessToken()
+        } catch (e: CancellationException) {
+            // If the coroutine calling connect() is canceled right while reading a token (e.g., user opened the app and immediately closed it),
+            // we must reset the state to Disconnected, otherwise it will remain stuck in Connecting forever!
+            _connectionState.value = Disconnected
+            throw e
+        } catch (t: Throwable) {
+            _connectionState.value = Failed(t)
+            return@withLock
+        }
+
         if (token.isNullOrEmpty()) {
-            _connectionState.update {
-                Failed(IllegalStateException("No auth token available"))
-            }
+            _connectionState.value = Failed(
+                IllegalStateException("No auth token available")
+            )
             return@withLock
         }
 
@@ -93,7 +104,8 @@ internal class ChatWebSocketClient @Inject constructor(
             .url(url)
             .build()
 
-        webSocket.update { okHttpClient.newWebSocket(request, createListener()) }
+        val newSocket = okHttpClient.newWebSocket(request, createListener())
+        webSocket.store(newSocket)
     }
 
     override suspend fun sendMessage(
@@ -106,29 +118,35 @@ internal class ChatWebSocketClient @Inject constructor(
 
         return try {
             val text = json.encodeToString(message)
-            val success = socket.send(text)
-            if (success) {
+            val enqueued = socket.send(text)
+            if (enqueued) {
                 Either.Right(Unit)
             } else {
                 Either.Left(DataError.Network.SocketError)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
             Either.Left(DataError.Network.SocketError)
         }
     }
 
     override suspend fun disconnect() = connectMutex.withLock {
-        webSocket.load()?.close(1000, "User disconnected")
-        webSocket.update { null }
-        _connectionState.update { Disconnected }
+        // exchange(null) retrieves the current socket and atomically sets it to null.
+        // When the old socket subsequently calls onClosed/onFailure, compareAndSet(ws, null) will return false and be ignored.
+        val activeSocket = webSocket.exchange(null)
+        activeSocket?.close(NORMAL_CLOSURE_STATUS, "Client requested disconnect")
+        _connectionState.value = Disconnected
     }
 
     private fun createListener() = object : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
-            _connectionState.update { Connected }
+            if (this@ChatWebSocketClient.webSocket.load() !== webSocket) return
+            _connectionState.value = Connected
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
+            if (this@ChatWebSocketClient.webSocket.load() !== webSocket) return
             try {
                 val event = json.decodeFromString<WsServerEvent>(text)
                 _incomingEvents.tryEmit(event)
@@ -137,24 +155,39 @@ internal class ChatWebSocketClient @Inject constructor(
             }
         }
 
+        override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+            webSocket.close(code, reason)
+        }
+
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-            this@ChatWebSocketClient.webSocket.update { null }
-            _connectionState.update { Failed(t) }
-            _incomingEvents.tryEmit(
-                WsServerEvent.Error(
-                    "CONNECTION_ERROR",
-                    t.message ?: "WebSocket connection error"
+            if (this@ChatWebSocketClient.webSocket.compareAndSet(
+                    expectedValue = webSocket,
+                    newValue = null
                 )
-            )
+            ) {
+                _connectionState.value = Failed(t)
+                _incomingEvents.tryEmit(
+                    WsServerEvent.Error(
+                        "CONNECTION_ERROR",
+                        t.message ?: "WebSocket connection error"
+                    )
+                )
+            }
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-            this@ChatWebSocketClient.webSocket.update { null }
-            _connectionState.update { Disconnected }
+            if (this@ChatWebSocketClient.webSocket.compareAndSet(
+                    expectedValue = webSocket,
+                    newValue = null
+                )
+            ) {
+                _connectionState.value = Disconnected
+            }
         }
     }
 
     companion object {
         private const val EVENT_TYPE = "type"
+        private const val NORMAL_CLOSURE_STATUS = 1000
     }
 }
