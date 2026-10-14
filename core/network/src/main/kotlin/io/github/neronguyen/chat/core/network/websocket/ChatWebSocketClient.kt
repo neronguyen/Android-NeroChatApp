@@ -51,7 +51,7 @@ internal class ChatWebSocketClient @Inject constructor(
     private var webSocket = AtomicReference<WebSocket?>(null)
 
     private val _connectionState =
-        MutableStateFlow<SocketConnectionState>(SocketConnectionState.Idle)
+        MutableStateFlow<SocketConnectionState>(SocketConnectionState.Disconnected)
     override val connectionState: StateFlow<SocketConnectionState> = _connectionState.asStateFlow()
 
     private val _incomingEvents = MutableSharedFlow<WsServerEvent>(

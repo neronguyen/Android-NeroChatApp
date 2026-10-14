@@ -89,8 +89,6 @@ class RealtimeConnectionManager @Inject constructor(
     private fun startConnectionSupervision() {
         if (connectionSupervisorJob?.isActive == true) return
 
-        appScope.launch { realtimeDataSource.connect() }
-
         connectionSupervisorJob = appScope.launch(Dispatchers.Main.immediate) {
             var retryAttempt = 0
 
@@ -103,6 +101,11 @@ class RealtimeConnectionManager @Inject constructor(
 
                     is SocketConnectionState.Failed,
                     is SocketConnectionState.Disconnected -> {
+                        if (retryAttempt == 0) {
+                            realtimeDataSource.connect()
+                            return@collectLatest
+                        }
+
                         retryAttempt++
                         delay(calculateBackoffDelay(retryAttempt).milliseconds)
                         realtimeDataSource.connect()
