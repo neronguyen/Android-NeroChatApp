@@ -3,6 +3,7 @@ package io.github.neronguyen.chat.core.network.interceptor
 import io.github.neronguyen.chat.core.datastore.TokenDataSource
 import jakarta.inject.Inject
 import jakarta.inject.Singleton
+import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response
 
@@ -13,7 +14,9 @@ internal class AuthInterceptor @Inject constructor(
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        val token = tokenDataSource.currentAccessToken
+        val token = runBlocking {
+            tokenDataSource.getAccessToken()
+        }
 
         val authenticatedRequest =
             if (!token.isNullOrBlank() && request.header(HEADER_AUTHORIZATION) == null) {

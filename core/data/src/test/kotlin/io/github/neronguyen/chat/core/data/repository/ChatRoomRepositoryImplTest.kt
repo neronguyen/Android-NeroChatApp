@@ -151,9 +151,6 @@ class ChatRoomRepositoryImplTest {
         )
     ) : TokenDataSource {
         override val authState: Flow<AuthState> = flowOf(initialAuthState)
-        override val currentAccessToken: String?
-            get() = "access_token"
-
         override suspend fun getRefreshToken(): String? = "refresh_token"
         override suspend fun getAccessToken(): String? = "access_token"
         override suspend fun saveAuthData(user: User, accessToken: String, refreshToken: String) {}

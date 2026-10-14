@@ -24,7 +24,9 @@ internal class TokenAuthenticator @Inject constructor(
             ?.removePrefix("${AuthInterceptor.TOKEN_TYPE_BEARER} ")
             ?.trim()
 
-        val currentToken = tokenDataSource.currentAccessToken
+        val currentToken = runBlocking {
+            tokenDataSource.getAccessToken()
+        }
 
         // Token was already refreshed by another concurrent request
         val validToken = if (!currentToken.isNullOrBlank() && currentToken != failedToken) {

@@ -32,8 +32,6 @@ class AuthRepositoryImplTest {
         var clearCalled = false
 
         override val authState: Flow<AuthState> = emptyFlow()
-        override val currentAccessToken: String?
-            get() = savedAccessToken
 
         override suspend fun getRefreshToken(): String? = savedRefreshToken
         override suspend fun getAccessToken(): String? = savedAccessToken

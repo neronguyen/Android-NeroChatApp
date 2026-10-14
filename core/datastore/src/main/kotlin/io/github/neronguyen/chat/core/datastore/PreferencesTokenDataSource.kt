@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.neronguyen.chat.core.common.network.AppScope
 import io.github.neronguyen.chat.core.common.network.ChatDispatchers
 import io.github.neronguyen.chat.core.common.network.Dispatcher
 import io.github.neronguyen.chat.core.datastore.model.UserData
@@ -17,12 +18,14 @@ import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.security.CryptoManager
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.IOException
@@ -36,16 +39,14 @@ private val Context.authDataStore: DataStore<Preferences> by preferencesDataStor
 internal class PreferencesTokenDataSource @Inject constructor(
     @ApplicationContext private val context: Context,
     private val cryptoManager: CryptoManager,
-    @Dispatcher(ChatDispatchers.IO) private val ioDispatcher: CoroutineDispatcher
+    @Dispatcher(ChatDispatchers.IO) private val ioDispatcher: CoroutineDispatcher,
+    @AppScope private val appScope: CoroutineScope,
 ) : TokenDataSource {
 
     private val dataStore = context.authDataStore
     private val json = Json { ignoreUnknownKeys = true }
 
     private val cachedAccessToken = AtomicReference<String?>(null)
-
-    override val currentAccessToken: String?
-        get() = cachedAccessToken.get()
 
     override val authState: Flow<AuthState> = dataStore.data
         .catch { exception ->
@@ -56,8 +57,9 @@ internal class PreferencesTokenDataSource @Inject constructor(
             }
         }
         .map { preferences ->
-            val encryptedAccessToken =
-                preferences[KEY_ENCRYPTED_ACCESS_TOKEN] ?: return@map AuthState.Unauthenticated
+            val encryptedAccessToken = preferences[KEY_ENCRYPTED_ACCESS_TOKEN]
+                ?: return@map AuthState.Unauthenticated
+
             val userDataJson = preferences[KEY_USER_DATA] ?: return@map AuthState.Unauthenticated
 
             val accessToken = decryptString(encryptedAccessToken)
@@ -80,17 +82,17 @@ internal class PreferencesTokenDataSource @Inject constructor(
                 cachedAccessToken.set(null)
             }
         }
-        .flowOn(ioDispatcher)
+        .shareIn(
+            scope = appScope,
+            started = SharingStarted.Eagerly,
+            replay = 1
+        )
 
-    override suspend fun getAccessToken(): String? = withContext(ioDispatcher) {
-        val cached = cachedAccessToken.get()
-        if (!cached.isNullOrBlank()) return@withContext cached
-
-        val preferences = dataStore.data.firstOrNull() ?: return@withContext null
-        val encrypted = preferences[KEY_ENCRYPTED_ACCESS_TOKEN] ?: return@withContext null
-        val decrypted = decryptString(encrypted).ifBlank { null }
-        cachedAccessToken.set(decrypted)
-        decrypted
+    override suspend fun getAccessToken(): String? {
+        // Fast path: non-blocking memory read
+        cachedAccessToken.get()?.takeIf { it.isNotBlank() }?.let { return it }
+        // Slow path: waits for the shared flow's first emission (already running on externalScope)
+        return (authState.firstOrNull() as? AuthState.Authenticated)?.accessToken
     }
 
     override suspend fun getRefreshToken(): String? = withContext(ioDispatcher) {
