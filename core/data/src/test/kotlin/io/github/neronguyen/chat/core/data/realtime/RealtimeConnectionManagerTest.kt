@@ -2,6 +2,9 @@ package io.github.neronguyen.chat.core.data.realtime
 
 import androidx.lifecycle.LifecycleOwner
 import arrow.core.Either
+import io.github.neronguyen.chat.core.datastore.TokenDataSource
+import io.github.neronguyen.chat.core.model.AuthState
+import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
@@ -13,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -65,6 +69,25 @@ class RealtimeConnectionManagerTest {
         }
     }
 
+    private class FakeTokenDataSource(
+        initialAuthState: AuthState = AuthState.Authenticated(
+            user = User(
+                id = "user123",
+                email = "test@example.com",
+                displayName = "Test User",
+                isEmailVerified = true
+            ),
+            accessToken = "access_token"
+        )
+    ) : TokenDataSource {
+        override val authState: Flow<AuthState> = flowOf(initialAuthState)
+        override suspend fun getRefreshToken(): String? = "refresh_token"
+        override suspend fun getAccessToken(): String? = "access_token"
+        override suspend fun saveAuthData(user: User, accessToken: String, refreshToken: String) {}
+        override suspend fun saveTokens(accessToken: String, refreshToken: String) {}
+        override suspend fun clearAuthData() {}
+    }
+
     private class FakeLifecycleOwner : LifecycleOwner {
         override val lifecycle get() = error("Not needed for unit tests")
     }
@@ -73,9 +96,11 @@ class RealtimeConnectionManagerTest {
     fun `onStart triggers connection supervision and connects realtime data source`() = runTest {
         val externalScope = TestScope(testDispatcher)
         val fakeDataSource = FakeChatRealtimeDataSource()
+        val fakeToken = FakeTokenDataSource()
 
         val manager = RealtimeConnectionManager(
             realtimeDataSource = fakeDataSource,
+            tokenDataSource = fakeToken,
             appScope = externalScope,
             ioDispatcher = testDispatcher
         )
@@ -91,9 +116,11 @@ class RealtimeConnectionManagerTest {
     fun `onStart retries connection on Failed state with backoff`() = runTest {
         val externalScope = TestScope(testDispatcher)
         val fakeDataSource = FakeChatRealtimeDataSource()
+        val fakeToken = FakeTokenDataSource()
 
         val manager = RealtimeConnectionManager(
             realtimeDataSource = fakeDataSource,
+            tokenDataSource = fakeToken,
             appScope = externalScope,
             ioDispatcher = testDispatcher
         )
@@ -116,9 +143,11 @@ class RealtimeConnectionManagerTest {
     fun `onStop disconnects realtime data source`() = runTest {
         val externalScope = TestScope(testDispatcher)
         val fakeDataSource = FakeChatRealtimeDataSource()
+        val fakeToken = FakeTokenDataSource()
 
         val manager = RealtimeConnectionManager(
             realtimeDataSource = fakeDataSource,
+            tokenDataSource = fakeToken,
             appScope = externalScope,
             ioDispatcher = testDispatcher
         )

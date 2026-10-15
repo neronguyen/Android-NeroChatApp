@@ -7,30 +7,19 @@ import io.github.neronguyen.chat.core.database.entity.ChatParticipantEntity
 import io.github.neronguyen.chat.core.database.entity.ChatRoomEntity
 import io.github.neronguyen.chat.core.database.entity.ChatRoomParticipantCrossRef
 import io.github.neronguyen.chat.core.database.model.ChatRoomWithDetails
-import io.github.neronguyen.chat.core.datastore.TokenDataSource
-import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
-import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
-import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.model.ChatMessageDto
 import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
 import io.github.neronguyen.chat.core.network.model.ChatRoomDto
-import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
-import io.github.neronguyen.chat.core.network.model.websocket.WsClientMessage
-import io.github.neronguyen.chat.core.network.model.websocket.WsServerEvent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 
@@ -76,6 +65,13 @@ class ChatRoomRepositoryImplTest {
         ) {
         }
 
+        override suspend fun insertSendingMessage(message: ChatMessageEntity) {
+            insertedMessages.add(message)
+            lastUpdatedRoomId = message.roomId
+            lastUpdatedRoomMessageId = message.id
+            lastUpdatedRoomTimestamp = message.timestamp
+        }
+
         override suspend fun upsertIncomingOrAckedMessage(message: ChatMessageEntity) {
             insertedMessages.add(message)
             lastUpdatedRoomId = message.roomId
@@ -109,26 +105,6 @@ class ChatRoomRepositoryImplTest {
             lastUpdatedRoomId = roomId
             lastUpdatedRoomMessageId = messageId
             lastUpdatedRoomTimestamp = timestamp
-        }
-    }
-
-    private class FakeChatRealtimeDataSource : ChatRealtimeDataSource {
-        var shouldSucceed = true
-
-        override val incomingEvents: Flow<WsServerEvent> = emptyFlow()
-        override val connectionState: StateFlow<SocketConnectionState> = MutableStateFlow(SocketConnectionState.Connected)
-
-        override suspend fun connect() {}
-        override suspend fun disconnect() {}
-
-        override suspend fun sendMessage(
-            message: WsClientMessage
-        ): Either<DataError.Realtime, Unit> {
-            return if (shouldSucceed) {
-                Either.Right(Unit)
-            } else {
-                Either.Left(DataError.Realtime.SocketError)
-            }
         }
     }
 
@@ -171,36 +147,18 @@ class ChatRoomRepositoryImplTest {
             Either.Right(Unit)
     }
 
-    private class FakeTokenDataSource(
-        initialAuthState: AuthState = AuthState.Authenticated(
-            user = User(id = "user123", email = "test@example.com", displayName = "Test User", isEmailVerified = true),
-            accessToken = "access_token"
-        )
-    ) : TokenDataSource {
-        override val authState: Flow<AuthState> = flowOf(initialAuthState)
-        override suspend fun getRefreshToken(): String? = "refresh_token"
-        override suspend fun getAccessToken(): String? = "access_token"
-        override suspend fun saveAuthData(user: User, accessToken: String, refreshToken: String) {}
-        override suspend fun saveTokens(accessToken: String, refreshToken: String) {}
-        override suspend fun clearAuthData() {}
-    }
-
     @Test
     fun `findChatParticipantByEmail delegates to networkDataSource`() = runTest {
         val fakeDao = FakeChatDao()
-        val fakeRealtime = FakeChatRealtimeDataSource()
         val fakeNetwork = FakeChatNetworkDataSource().apply {
             participantResponse = Either.Right(
                 ChatParticipantDto("user-abc", "abc@example.com", "ABC User")
             )
         }
-        val fakeToken = FakeTokenDataSource()
 
         val repository = ChatRoomRepositoryImpl(
             chatDao = fakeDao,
-            realtimeDataSource = fakeRealtime,
             networkDataSource = fakeNetwork,
-            tokenDataSource = fakeToken,
             defaultDispatcher = testDispatcher
         )
 
@@ -216,7 +174,6 @@ class ChatRoomRepositoryImplTest {
     @Test
     fun `createDirectChatRoom passes targetUserId directly to networkDataSource without validation`() = runTest {
         val fakeDao = FakeChatDao()
-        val fakeRealtime = FakeChatRealtimeDataSource()
         val targetId = "target-user-id"
         val fakeNetwork = FakeChatNetworkDataSource().apply {
             directChatResponse = Either.Right(
@@ -234,13 +191,10 @@ class ChatRoomRepositoryImplTest {
                 )
             )
         }
-        val fakeToken = FakeTokenDataSource()
 
         val repository = ChatRoomRepositoryImpl(
             chatDao = fakeDao,
-            realtimeDataSource = fakeRealtime,
             networkDataSource = fakeNetwork,
-            tokenDataSource = fakeToken,
             defaultDispatcher = testDispatcher
         )
 
@@ -254,7 +208,6 @@ class ChatRoomRepositoryImplTest {
     @Test
     fun `createGroupChatRoom passes participantIds directly to networkDataSource without validation`() = runTest {
         val fakeDao = FakeChatDao()
-        val fakeRealtime = FakeChatRealtimeDataSource()
         val participantIds = listOf("user-1", "user-2")
         val fakeNetwork = FakeChatNetworkDataSource().apply {
             groupChatResponse = Either.Right(
@@ -273,13 +226,10 @@ class ChatRoomRepositoryImplTest {
                 )
             )
         }
-        val fakeToken = FakeTokenDataSource()
 
         val repository = ChatRoomRepositoryImpl(
             chatDao = fakeDao,
-            realtimeDataSource = fakeRealtime,
             networkDataSource = fakeNetwork,
-            tokenDataSource = fakeToken,
             defaultDispatcher = testDispatcher
         )
 
@@ -288,84 +238,5 @@ class ChatRoomRepositoryImplTest {
         assertTrue(result.isRight())
         assertEquals(participantIds, fakeNetwork.lastGroupParticipantIds)
         assertEquals("Group Test", fakeNetwork.lastGroupName)
-    }
-
-    @Test
-    fun `sendMessage inserts sending entity and keeps status SENDING on socket write success`() = runTest {
-        val fakeDao = FakeChatDao()
-        val fakeRealtime = FakeChatRealtimeDataSource().apply { shouldSucceed = true }
-        val fakeNetwork = FakeChatNetworkDataSource()
-        val fakeToken = FakeTokenDataSource()
-
-        val repository = ChatRoomRepositoryImpl(
-            chatDao = fakeDao,
-            realtimeDataSource = fakeRealtime,
-            networkDataSource = fakeNetwork,
-            tokenDataSource = fakeToken,
-            defaultDispatcher = testDispatcher
-        )
-
-        val result = repository.sendMessage("room1", "Hello World")
-
-        assertTrue(result.isRight())
-        assertEquals(1, fakeDao.insertedMessages.size)
-
-        val insertedMsg = fakeDao.insertedMessages.first()
-        assertEquals("room1", insertedMsg.roomId)
-        assertEquals("Hello World", insertedMsg.content)
-        assertEquals(MessageDeliveryStatus.SENDING, insertedMsg.deliveryStatus)
-
-        assertEquals("room1", fakeDao.lastUpdatedRoomId)
-        assertEquals(insertedMsg.id, fakeDao.lastUpdatedRoomMessageId)
-        assertEquals(insertedMsg.timestamp, fakeDao.lastUpdatedRoomTimestamp)
-
-        assertNull(fakeDao.updatedStatuses[insertedMsg.id])
-    }
-
-    @Test
-    fun `sendMessage updates status to FAILED when socket write fails`() = runTest {
-        val fakeDao = FakeChatDao()
-        val fakeRealtime = FakeChatRealtimeDataSource().apply { shouldSucceed = false }
-        val fakeNetwork = FakeChatNetworkDataSource()
-        val fakeToken = FakeTokenDataSource()
-
-        val repository = ChatRoomRepositoryImpl(
-            chatDao = fakeDao,
-            realtimeDataSource = fakeRealtime,
-            networkDataSource = fakeNetwork,
-            tokenDataSource = fakeToken,
-            defaultDispatcher = testDispatcher
-        )
-
-        val result = repository.sendMessage("room1", "Hello World")
-
-        assertTrue(result.isLeft())
-        assertEquals(DataError.Realtime.SocketError, result.leftOrNull())
-        assertEquals(1, fakeDao.insertedMessages.size)
-
-        val insertedMsg = fakeDao.insertedMessages.first()
-        assertEquals(MessageDeliveryStatus.FAILED, fakeDao.updatedStatuses[insertedMsg.id])
-    }
-
-    @Test
-    fun `sendMessage returns Unauthorized error when unauthenticated`() = runTest {
-        val fakeDao = FakeChatDao()
-        val fakeRealtime = FakeChatRealtimeDataSource()
-        val fakeNetwork = FakeChatNetworkDataSource()
-        val fakeToken = FakeTokenDataSource(initialAuthState = AuthState.Unauthenticated)
-
-        val repository = ChatRoomRepositoryImpl(
-            chatDao = fakeDao,
-            realtimeDataSource = fakeRealtime,
-            networkDataSource = fakeNetwork,
-            tokenDataSource = fakeToken,
-            defaultDispatcher = testDispatcher
-        )
-
-        val result = repository.sendMessage("room1", "Hello World")
-
-        assertTrue(result.isLeft())
-        assertEquals(DataError.Local.Unauthorized, result.leftOrNull())
-        assertEquals(0, fakeDao.insertedMessages.size)
     }
 }
