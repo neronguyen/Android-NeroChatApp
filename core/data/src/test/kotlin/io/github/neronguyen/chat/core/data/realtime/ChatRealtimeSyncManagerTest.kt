@@ -73,7 +73,8 @@ class ChatRealtimeSyncManagerTest {
         val deletedMessages = mutableListOf<String>()
         val deletedCrossRefs = mutableListOf<Pair<String, String>>()
         val updatedStatuses = mutableMapOf<String, MessageDeliveryStatus>()
-        var reconciledAck: Triple<String, String, Long>? = null
+        var markSendingFailedCount = 0
+        var upsertedIncomingOrAckedMessage: ChatMessageEntity? = null
 
         override fun getChatsWithDetails(): Flow<List<ChatRoomWithDetails>> = emptyFlow()
         override fun getChatWithDetails(roomId: String): Flow<ChatRoomWithDetails?> =
@@ -118,6 +119,18 @@ class ChatRealtimeSyncManagerTest {
             updatedStatuses[messageId] = status
         }
 
+        override suspend fun markSendingMessagesAsFailed(
+            sendingStatus: MessageDeliveryStatus,
+            failedStatus: MessageDeliveryStatus
+        ) {
+            markSendingFailedCount++
+        }
+
+        override suspend fun upsertIncomingOrAckedMessage(message: ChatMessageEntity) {
+            upsertedIncomingOrAckedMessage = message
+            upsertedMessages.add(message)
+        }
+
         override suspend fun deleteMessage(messageId: String) {
             deletedMessages.add(messageId)
         }
@@ -156,26 +169,11 @@ class ChatRealtimeSyncManagerTest {
             timestamp: Long
         ) {
         }
-
-        override suspend fun updateMessageStatusAndTimestamp(
-            messageId: String,
-            timestamp: Long,
-            status: MessageDeliveryStatus
-        ) {
-        }
-
-        override suspend fun reconcileMessageAck(
-            roomId: String,
-            messageId: String,
-            serverTimestamp: Long,
-            status: MessageDeliveryStatus
-        ) {
-            reconciledAck = Triple(roomId, messageId, serverTimestamp)
-        }
     }
 
     @Test
-    fun `initialize handles incoming NewMessage event and reconciles ack`() = runTest {
+    fun `initialize handles incoming NewMessage event and upserts incoming or acked message`() =
+        runTest {
         val externalScope = TestScope(testDispatcher)
         val fakeDataSource = FakeChatRealtimeDataSource()
         val fakeDao = FakeChatDao()
@@ -201,7 +199,13 @@ class ChatRealtimeSyncManagerTest {
         fakeDataSource.incomingEventsFlow.emit(WsServerEvent.NewMessage(messageDto))
 
         testScheduler.advanceUntilIdle()
-        assertEquals(Triple("room-1", "server-456", 1000L), fakeDao.reconciledAck)
+            assertEquals("server-456", fakeDao.upsertedIncomingOrAckedMessage?.id)
+            assertEquals("room-1", fakeDao.upsertedIncomingOrAckedMessage?.roomId)
+            assertEquals(1000L, fakeDao.upsertedIncomingOrAckedMessage?.timestamp)
+            assertEquals(
+                MessageDeliveryStatus.SENT,
+                fakeDao.upsertedIncomingOrAckedMessage?.deliveryStatus
+            )
     }
 
     @Test
@@ -301,4 +305,29 @@ class ChatRealtimeSyncManagerTest {
         testScheduler.advanceUntilIdle()
         assertEquals(listOf("room-1" to "user-2"), fakeDao.deletedCrossRefs)
     }
+
+    @Test
+    fun `initialize marks sending messages as failed when connectionState becomes Failed or Disconnected`() =
+        runTest {
+            val externalScope = TestScope(testDispatcher)
+            val fakeDataSource = FakeChatRealtimeDataSource()
+            val fakeDao = FakeChatDao()
+
+            val syncManager = ChatRealtimeSyncManager(
+                realtimeDataSource = fakeDataSource,
+                chatDao = fakeDao,
+                appScope = externalScope,
+                ioDispatcher = testDispatcher
+            )
+
+            syncManager.initialize()
+            testScheduler.advanceUntilIdle()
+            val initialCount = fakeDao.markSendingFailedCount
+
+            fakeDataSource.connectionStateFlow.value =
+                SocketConnectionState.Failed(RuntimeException("Socket dropped"))
+
+            testScheduler.advanceUntilIdle()
+            assertEquals(initialCount + 1, fakeDao.markSendingFailedCount)
+        }
 }

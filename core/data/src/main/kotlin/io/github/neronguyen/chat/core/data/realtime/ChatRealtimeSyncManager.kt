@@ -7,14 +7,18 @@ import io.github.neronguyen.chat.core.data.mapper.toEntity
 import io.github.neronguyen.chat.core.database.dao.ChatDao
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
+import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState.Disconnected
+import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState.Failed
 import io.github.neronguyen.chat.core.network.model.websocket.WsServerEvent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
+@OptIn(ExperimentalAtomicApi::class)
 @Singleton
 class ChatRealtimeSyncManager @Inject constructor(
     private val realtimeDataSource: ChatRealtimeDataSource,
@@ -22,13 +26,12 @@ class ChatRealtimeSyncManager @Inject constructor(
     @AppScope private val appScope: CoroutineScope,
     @Dispatcher(ChatDispatchers.IO) private val ioDispatcher: CoroutineDispatcher
 ) {
-
-    private var observeEventsJob: Job? = null
+    private val initialized = AtomicBoolean(false)
 
     fun initialize() {
-        if (observeEventsJob?.isActive == true) return
+        if (!initialized.compareAndSet(expectedValue = false, newValue = true)) return
 
-        observeEventsJob = appScope.launch(ioDispatcher) {
+        appScope.launch(ioDispatcher) {
             realtimeDataSource.incomingEvents.collect { event ->
                 when (event) {
                     is WsServerEvent.NewMessage -> handleNewMessage(event)
@@ -41,16 +44,19 @@ class ChatRealtimeSyncManager @Inject constructor(
                 }
             }
         }
+
+        appScope.launch(ioDispatcher) {
+            realtimeDataSource.connectionState.collect { state ->
+                if (state is Failed || state is Disconnected) {
+                    chatDao.markSendingMessagesAsFailed()
+                }
+            }
+        }
     }
 
     private suspend fun handleNewMessage(event: WsServerEvent.NewMessage) {
-        val dto = event.message
-        chatDao.reconcileMessageAck(
-            roomId = dto.roomId,
-            messageId = dto.id,
-            serverTimestamp = dto.createdAt.toEpochMilliseconds(),
-            status = MessageDeliveryStatus.SENT
-        )
+        val entity = event.message.toEntity(status = MessageDeliveryStatus.SENT)
+        chatDao.upsertIncomingOrAckedMessage(entity)
     }
 
     private suspend fun handleMessageDeleted(event: WsServerEvent.MessageDeleted) {

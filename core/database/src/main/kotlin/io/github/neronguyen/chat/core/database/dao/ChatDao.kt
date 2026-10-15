@@ -63,6 +63,18 @@ interface ChatDao {
     @Query("UPDATE chat_messages SET deliveryStatus = :status WHERE id = :messageId")
     suspend fun updateDeliveryStatus(messageId: String, status: MessageDeliveryStatus)
 
+    @Query(
+        """
+        UPDATE chat_messages 
+        SET deliveryStatus = :failedStatus 
+        WHERE deliveryStatus = :sendingStatus
+        """
+    )
+    suspend fun markSendingMessagesAsFailed(
+        sendingStatus: MessageDeliveryStatus = MessageDeliveryStatus.SENDING,
+        failedStatus: MessageDeliveryStatus = MessageDeliveryStatus.FAILED
+    )
+
     @Query("DELETE FROM chat_messages WHERE id = :messageId")
     suspend fun deleteMessage(messageId: String)
 
@@ -88,28 +100,14 @@ interface ChatDao {
     }
 
     @Transaction
-    suspend fun reconcileMessageAck(
-        roomId: String,
-        messageId: String,
-        serverTimestamp: Long,
-        status: MessageDeliveryStatus = MessageDeliveryStatus.SENT
-    ) {
-        updateMessageStatusAndTimestamp(messageId, serverTimestamp, status)
-        updateRoomLastActivity(roomId, messageId, serverTimestamp)
+    suspend fun upsertIncomingOrAckedMessage(message: ChatMessageEntity) {
+        upsertMessage(message)
+        updateRoomLastActivity(
+            roomId = message.roomId,
+            messageId = message.id,
+            timestamp = message.timestamp
+        )
     }
-
-    @Query(
-        """
-        UPDATE chat_messages 
-        SET deliveryStatus = :status, timestamp = :timestamp 
-        WHERE id = :messageId
-    """
-    )
-    suspend fun updateMessageStatusAndTimestamp(
-        messageId: String,
-        timestamp: Long,
-        status: MessageDeliveryStatus
-    )
 
     @Transaction
     suspend fun insertFullChat(

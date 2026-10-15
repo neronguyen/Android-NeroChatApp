@@ -70,6 +70,19 @@ class ChatRoomRepositoryImplTest {
             updatedStatuses[messageId] = status
         }
 
+        override suspend fun markSendingMessagesAsFailed(
+            sendingStatus: MessageDeliveryStatus,
+            failedStatus: MessageDeliveryStatus
+        ) {
+        }
+
+        override suspend fun upsertIncomingOrAckedMessage(message: ChatMessageEntity) {
+            insertedMessages.add(message)
+            lastUpdatedRoomId = message.roomId
+            lastUpdatedRoomMessageId = message.id
+            lastUpdatedRoomTimestamp = message.timestamp
+        }
+
         override suspend fun deleteMessage(messageId: String) {}
 
         override suspend fun deleteParticipantCrossRef(roomId: String, userId: String) {}
@@ -97,8 +110,6 @@ class ChatRoomRepositoryImplTest {
             lastUpdatedRoomMessageId = messageId
             lastUpdatedRoomTimestamp = timestamp
         }
-
-        override suspend fun updateMessageStatusAndTimestamp(messageId: String, timestamp: Long, status: MessageDeliveryStatus) {}
     }
 
     private class FakeChatRealtimeDataSource : ChatRealtimeDataSource {

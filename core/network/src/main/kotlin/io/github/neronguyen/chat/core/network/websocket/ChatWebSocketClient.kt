@@ -166,12 +166,6 @@ internal class ChatWebSocketClient @Inject constructor(
                 )
             ) {
                 _connectionState.value = Failed(t)
-                _incomingEvents.tryEmit(
-                    WsServerEvent.Error(
-                        "CONNECTION_ERROR",
-                        t.message ?: "WebSocket connection error"
-                    )
-                )
             }
         }
 
