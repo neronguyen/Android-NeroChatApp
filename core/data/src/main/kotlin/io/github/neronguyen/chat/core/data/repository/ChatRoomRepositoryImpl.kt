@@ -7,6 +7,7 @@ import io.github.neronguyen.chat.core.data.mapper.toDomain
 import io.github.neronguyen.chat.core.data.mapper.toEntity
 import io.github.neronguyen.chat.core.database.dao.ChatDao
 import io.github.neronguyen.chat.core.database.entity.ChatMessageEntity
+import io.github.neronguyen.chat.core.database.entity.ChatRoomParticipantCrossRef
 import io.github.neronguyen.chat.core.datastore.TokenDataSource
 import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.ChatMessage
@@ -16,6 +17,7 @@ import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
+import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
 import io.github.neronguyen.chat.core.network.model.ChatRoomDto
 import io.github.neronguyen.chat.core.network.model.websocket.WsClientMessage
 import kotlinx.coroutines.CoroutineDispatcher
@@ -23,6 +25,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.uuid.ExperimentalUuidApi
@@ -56,9 +59,33 @@ internal class ChatRoomRepositoryImpl @Inject constructor(
     }
 
     override suspend fun syncChats(): Either<DataError.Network, Unit> {
-        return networkDataSource.getChatRoomsForUser().map { dtos ->
-            dtos.forEach { dto ->
-                saveChatRoomDto(dto)
+        return withContext(context = defaultDispatcher) {
+            networkDataSource.getChatRoomsForUser().map { roomDtos ->
+                val rooms = roomDtos.map { it.toEntity() }
+
+                val participants = mutableSetOf<ChatParticipantDto>()
+                roomDtos.forEach { participants.addAll(it.participants + it.creator) }
+                val participantEntities = participants.map { it.toEntity() }
+
+                val lastMessages = roomDtos.mapNotNull {
+                    it.lastMessage?.toEntity(MessageDeliveryStatus.SENT)
+                }
+
+                val crossRefs = roomDtos.flatMap { dto ->
+                    val allParticipantIds =
+                        (dto.participants.map { it.userId } + dto.creator.userId).distinct()
+
+                    allParticipantIds.map { userId ->
+                        ChatRoomParticipantCrossRef(chatId = dto.id, userId = userId)
+                    }
+                }
+
+                chatDao.insertFullChats(
+                    rooms = rooms,
+                    participants = participantEntities,
+                    lastMessages = lastMessages,
+                    crossRefs = crossRefs
+                )
             }
         }
     }

@@ -1,6 +1,7 @@
 package io.github.neronguyen.chat.core.database.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
@@ -30,6 +31,9 @@ interface ChatDao {
 
     @Query("SELECT * FROM chat_messages WHERE id = :id LIMIT 1")
     suspend fun getMessageById(id: String): ChatMessageEntity?
+
+    @Query("SELECT * FROM chat_room_participants WHERE chatId IN (:roomIds)")
+    suspend fun getCrossRefsForRooms(roomIds: List<String>): List<ChatRoomParticipantCrossRef>
 
     // --- Upserts ---
 
@@ -67,6 +71,9 @@ interface ChatDao {
 
     @Query("UPDATE chat_rooms SET lastMessageId = :messageId, lastActivityAt = :timestamp WHERE id = :chatRoomId")
     suspend fun updateRoomLastActivity(chatRoomId: String, messageId: String, timestamp: Long)
+
+    @Delete
+    suspend fun deleteCrossRefs(crossRefs: List<ChatRoomParticipantCrossRef>)
 
     // --- Transactions ---
 
@@ -109,6 +116,31 @@ interface ChatDao {
         val allParticipantIds = (participants.map { it.userId } + creator.userId).distinct()
         val crossRefs = allParticipantIds.map { userId ->
             ChatRoomParticipantCrossRef(chatId = room.id, userId = userId)
+        }
+
+        upsertCrossRefs(crossRefs)
+    }
+
+    @Transaction
+    suspend fun insertFullChats(
+        rooms: List<ChatRoomEntity>,
+        participants: List<ChatParticipantEntity>,
+        lastMessages: List<ChatMessageEntity>,
+        crossRefs: List<ChatRoomParticipantCrossRef>
+    ) {
+        if (rooms.isEmpty()) return
+
+        upsertParticipants(participants)
+        upsertMessages(lastMessages)
+        upsertRooms(rooms)
+
+        val roomIds = rooms.map { it.id }
+        val existingCrossRefs = getCrossRefsForRooms(roomIds)
+        val newCrossRefSet = existingCrossRefs.toSet()
+
+        val staleCrossRefs = existingCrossRefs.filter { it !in newCrossRefSet }
+        if (staleCrossRefs.isNotEmpty()) {
+            deleteCrossRefs(staleCrossRefs)
         }
 
         upsertCrossRefs(crossRefs)
