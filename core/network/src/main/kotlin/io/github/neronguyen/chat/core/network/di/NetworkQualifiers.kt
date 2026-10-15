@@ -13,3 +13,7 @@ annotation class AuthenticatedOkHttp
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class RealtimeOkHttp
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class RefreshOkHttp

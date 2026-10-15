@@ -21,6 +21,7 @@ import io.github.neronguyen.chat.core.network.retrofit.RetrofitChatNetwork
 import io.github.neronguyen.chat.core.network.websocket.ChatWebSocketClient
 import jakarta.inject.Singleton
 import kotlinx.serialization.json.Json
+import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.TimeUnit
@@ -91,6 +92,15 @@ internal abstract class NetworkModule {
             .callTimeout(0, TimeUnit.SECONDS)
             .readTimeout(0, TimeUnit.SECONDS)
             .pingInterval(30.seconds)
+            .build()
+
+        @Provides
+        @Singleton
+        @RefreshOkHttp
+        fun provideRefreshOkHttpClient(
+            @BaseOkHttp client: OkHttpClient
+        ): OkHttpClient = client.newBuilder()
+            .dispatcher(Dispatcher())
             .build()
 
         @Provides
