@@ -26,6 +26,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RealtimeConnectionManagerTest {
@@ -158,5 +159,26 @@ class RealtimeConnectionManagerTest {
 
         testScheduler.advanceUntilIdle()
         assertEquals(1, fakeDataSource.disconnectCalledCount)
+    }
+
+    @Test
+    fun `onStart disconnects realtime data source when unauthenticated`() = runTest {
+        val externalScope = TestScope(testDispatcher)
+        val fakeDataSource = FakeChatRealtimeDataSource()
+        val fakeToken = FakeTokenDataSource(initialAuthState = AuthState.Unauthenticated)
+
+        val manager = RealtimeConnectionManager(
+            realtimeDataSource = fakeDataSource,
+            tokenDataSource = fakeToken,
+            appScope = externalScope,
+            ioDispatcher = testDispatcher
+        )
+
+        val owner = FakeLifecycleOwner()
+        manager.onStart(owner)
+
+        testScheduler.advanceUntilIdle()
+        assertEquals(0, fakeDataSource.connectCalledCount)
+        assertTrue(fakeDataSource.disconnectCalledCount >= 1)
     }
 }
