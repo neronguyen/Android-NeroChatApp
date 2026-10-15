@@ -265,4 +265,34 @@ class ChatRoomMapperTest {
         assertNull(domain.lastMessage)
         assertEquals(Instant.fromEpochMilliseconds(activityTimeMillis), domain.lastActivityAt)
     }
+
+    @Test
+    fun `ChatRoomDto toEntity and ChatRoomWithDetails toDomain map null lastActivityAt correctly`() {
+        val participantDto = ChatParticipantDto(
+            userId = "creator1",
+            email = "creator@example.com",
+            displayName = "Creator"
+        )
+        val chatRoomDto = ChatRoomDto(
+            id = "roomNullTime",
+            rawType = "DIRECT",
+            name = null,
+            creator = participantDto,
+            participants = listOf(participantDto),
+            lastMessage = null,
+            lastActivityAt = null
+        )
+
+        val entity = chatRoomDto.toEntity()
+        assertNull(entity.lastActivityAt)
+
+        val roomWithDetails = ChatRoomWithDetails(
+            room = entity,
+            creator = null,
+            participants = emptyList(),
+            lastMessage = null
+        )
+        val domain = roomWithDetails.toDomain()
+        assertNull(domain.lastActivityAt)
+    }
 }

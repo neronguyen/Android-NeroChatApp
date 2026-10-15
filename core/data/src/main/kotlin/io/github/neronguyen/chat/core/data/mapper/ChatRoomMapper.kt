@@ -107,7 +107,7 @@ fun ChatRoomDto.toEntity(): ChatRoomEntity {
         name = name,
         creatorId = creator.userId,
         lastMessageId = lastMessage?.id,
-        lastActivityAt = lastActivityAt?.toEpochMilliseconds() ?: 0L
+        lastActivityAt = lastActivityAt?.toEpochMilliseconds()
     )
 }
 
@@ -121,6 +121,6 @@ fun ChatRoomWithDetails.toDomain(): ChatRoom {
         creator = creatorParticipant,
         participants = participants.map { it.toDomain() },
         lastMessage = lastMessage?.toDomain(),
-        lastActivityAt = Instant.fromEpochMilliseconds(room.lastActivityAt)
+        lastActivityAt = room.lastActivityAt?.let { Instant.fromEpochMilliseconds(it) }
     )
 }

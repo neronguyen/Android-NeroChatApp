@@ -15,5 +15,5 @@ data class ChatRoomEntity(
     val name: String? = null,
     val creatorId: String,
     val lastMessageId: String? = null,
-    val lastActivityAt: Long = 0L
+    val lastActivityAt: Long? = null
 )
