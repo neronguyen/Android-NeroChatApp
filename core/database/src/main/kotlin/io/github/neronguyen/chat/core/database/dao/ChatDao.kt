@@ -144,7 +144,7 @@ interface ChatDao {
 
         val roomIds = rooms.map { it.id }
         val existingCrossRefs = getCrossRefsForRooms(roomIds)
-        val newCrossRefSet = existingCrossRefs.toSet()
+        val newCrossRefSet = crossRefs.toSet()
 
         val staleCrossRefs = existingCrossRefs.filter { it !in newCrossRefSet }
         if (staleCrossRefs.isNotEmpty()) {
