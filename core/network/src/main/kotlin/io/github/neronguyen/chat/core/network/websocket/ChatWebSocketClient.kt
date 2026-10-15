@@ -1,7 +1,6 @@
 package io.github.neronguyen.chat.core.network.websocket
 
 import arrow.core.Either
-import io.github.neronguyen.chat.core.datastore.TokenDataSource
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.BuildConfig
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
@@ -38,7 +37,6 @@ import kotlin.coroutines.cancellation.CancellationException
 @Singleton
 internal class ChatWebSocketClient @Inject constructor(
     @RealtimeOkHttp private val okHttpClient: OkHttpClient,
-    private val tokenDataSource: TokenDataSource,
 ) : ChatRealtimeDataSource {
 
     private val json = Json {
@@ -71,25 +69,6 @@ internal class ChatWebSocketClient @Inject constructor(
         }
 
         _connectionState.value = Connecting
-
-        val token = try {
-            tokenDataSource.getAccessToken()
-        } catch (e: CancellationException) {
-            // If the coroutine calling connect() is canceled right while reading a token (e.g., user opened the app and immediately closed it),
-            // we must reset the state to Disconnected, otherwise it will remain stuck in Connecting forever!
-            _connectionState.value = Disconnected
-            throw e
-        } catch (t: Throwable) {
-            _connectionState.value = Failed(t)
-            return@withLock
-        }
-
-        if (token.isNullOrEmpty()) {
-            _connectionState.value = Failed(
-                IllegalStateException("No auth token available")
-            )
-            return@withLock
-        }
 
         val rawBaseUrl = BuildConfig.BASE_URL.ifEmpty { "http://10.0.2.2:8080/" }
         val wsBaseUrl = when {

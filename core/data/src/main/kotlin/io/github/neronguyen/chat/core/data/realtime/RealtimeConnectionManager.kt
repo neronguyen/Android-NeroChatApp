@@ -6,6 +6,8 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import io.github.neronguyen.chat.core.common.network.AppScope
 import io.github.neronguyen.chat.core.common.network.ChatDispatchers
 import io.github.neronguyen.chat.core.common.network.Dispatcher
+import io.github.neronguyen.chat.core.datastore.TokenDataSource
+import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
 import kotlinx.coroutines.CoroutineDispatcher
@@ -13,6 +15,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -25,6 +29,7 @@ import kotlin.time.Duration.Companion.milliseconds
 @Singleton
 class RealtimeConnectionManager @Inject constructor(
     private val realtimeDataSource: ChatRealtimeDataSource,
+    private val tokenDataSource: TokenDataSource,
     @AppScope private val appScope: CoroutineScope,
     @Dispatcher(ChatDispatchers.IO) private val ioDispatcher: CoroutineDispatcher
 ) : DefaultLifecycleObserver {
@@ -54,14 +59,23 @@ class RealtimeConnectionManager @Inject constructor(
         if (!initialized.compareAndSet(expectedValue = false, newValue = true)) return
 
         appScope.launch(ioDispatcher) {
-            isForeground.collectLatest { foreground ->
-                if (foreground) {
-                    superviseConnection()
-                } else {
-                    delay(DISCONNECT_DELAY_MS.milliseconds)
-                    realtimeDataSource.disconnect()
-                }
+            combine(
+                isForeground,
+                tokenDataSource.authState
+            ) { foreground, authState ->
+                foreground to (authState is AuthState.Authenticated)
             }
+                .distinctUntilChanged()
+                .collectLatest { (foreground, isAuthenticated) ->
+                    when {
+                        !isAuthenticated -> realtimeDataSource.disconnect()
+                        foreground -> superviseConnection()
+                        else -> {
+                            delay(DISCONNECT_DELAY_MS.milliseconds)
+                            realtimeDataSource.disconnect()
+                        }
+                    }
+                }
         }
     }
 
