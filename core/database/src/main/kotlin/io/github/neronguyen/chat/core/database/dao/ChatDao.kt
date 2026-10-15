@@ -78,6 +78,16 @@ interface ChatDao {
     // --- Transactions ---
 
     @Transaction
+    suspend fun insertSendingMessage(message: ChatMessageEntity) {
+        upsertMessage(message)
+        updateRoomLastActivity(
+            roomId = message.roomId,
+            messageId = message.id,
+            timestamp = message.timestamp
+        )
+    }
+
+    @Transaction
     suspend fun reconcileMessageAck(
         roomId: String,
         messageId: String,
