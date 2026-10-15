@@ -16,7 +16,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 
-class ChatRoomMapperTest {
+class ChatMapperTest {
 
     @Test
     fun `ChatMessageDto toDomain maps Instant createdAt to domain timestamp`() {
