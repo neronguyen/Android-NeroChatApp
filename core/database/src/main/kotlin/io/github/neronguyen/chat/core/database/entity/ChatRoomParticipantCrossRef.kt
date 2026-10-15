@@ -5,10 +5,10 @@ import androidx.room.Index
 
 @Entity(
     tableName = "chat_room_participants",
-    primaryKeys = ["chatId", "userId"],
-    indices = [Index(value = ["userId"]), Index(value = ["chatId"])]
+    primaryKeys = ["roomId", "userId"],
+    indices = [Index(value = ["userId"]), Index(value = ["roomId"])]
 )
 data class ChatRoomParticipantCrossRef(
-    val chatId: String,
+    val roomId: String,
     val userId: String
 )

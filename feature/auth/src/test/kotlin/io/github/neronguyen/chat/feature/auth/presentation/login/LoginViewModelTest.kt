@@ -215,9 +215,5 @@ private class FakeAuthRepository : AuthRepository {
         }
     }
 
-    override suspend fun refreshToken(staleToken: String): Either<DataError.Network, String> {
-        return Either.Right("new_access_token")
-    }
-
     override suspend fun logout(): Either<DataError.Network, Unit> = Either.Right(Unit)
 }

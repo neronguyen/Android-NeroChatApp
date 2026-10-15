@@ -76,15 +76,20 @@ class ChatRealtimeSyncManagerTest {
         var reconciledAck: Triple<String, String, Long>? = null
 
         override fun getChatsWithDetails(): Flow<List<ChatRoomWithDetails>> = emptyFlow()
-        override fun getChatWithDetails(chatRoomId: String): Flow<ChatRoomWithDetails?> =
+        override fun getChatWithDetails(roomId: String): Flow<ChatRoomWithDetails?> =
             emptyFlow()
 
         override fun getRecentMessages(
-            chatRoomId: String,
+            roomId: String,
             limit: Int
         ): Flow<List<ChatMessageEntity>> = emptyFlow()
 
         override suspend fun getMessageById(id: String): ChatMessageEntity? = null
+
+        override suspend fun getCrossRefsForRooms(roomIds: List<String>): List<ChatRoomParticipantCrossRef> =
+            emptyList()
+
+        override suspend fun deleteCrossRefs(crossRefs: List<ChatRoomParticipantCrossRef>) {}
 
         override suspend fun upsertRoom(room: ChatRoomEntity) {}
         override suspend fun upsertRooms(rooms: List<ChatRoomEntity>) {}
@@ -117,12 +122,12 @@ class ChatRealtimeSyncManagerTest {
             deletedMessages.add(messageId)
         }
 
-        override suspend fun deleteParticipantCrossRef(chatRoomId: String, userId: String) {
-            deletedCrossRefs.add(chatRoomId to userId)
+        override suspend fun deleteParticipantCrossRef(roomId: String, userId: String) {
+            deletedCrossRefs.add(roomId to userId)
         }
 
         override suspend fun handleParticipantJoined(
-            chatRoomId: String,
+            roomId: String,
             newUsers: List<ChatParticipantEntity>,
             addedBy: ChatParticipantEntity?
         ) {
@@ -130,23 +135,23 @@ class ChatRealtimeSyncManagerTest {
             if (newUsers.isNotEmpty()) {
                 upsertedParticipants.addAll(newUsers)
                 val crossRefs = newUsers.map { participant ->
-                    ChatRoomParticipantCrossRef(chatId = chatRoomId, userId = participant.userId)
+                    ChatRoomParticipantCrossRef(roomId = roomId, userId = participant.userId)
                 }
                 upsertedCrossRefs.addAll(crossRefs)
             }
         }
 
         override suspend fun handleParticipantLeft(
-            chatRoomId: String,
+            roomId: String,
             leftUser: ChatParticipantEntity,
             kickedBy: ChatParticipantEntity?
         ) {
             kickedBy?.let { upsertedParticipants.add(it) }
-            deletedCrossRefs.add(chatRoomId to leftUser.userId)
+            deletedCrossRefs.add(roomId to leftUser.userId)
         }
 
         override suspend fun updateRoomLastActivity(
-            chatRoomId: String,
+            roomId: String,
             messageId: String,
             timestamp: Long
         ) {
@@ -160,12 +165,12 @@ class ChatRealtimeSyncManagerTest {
         }
 
         override suspend fun reconcileMessageAck(
-            chatRoomId: String,
+            roomId: String,
             messageId: String,
             serverTimestamp: Long,
             status: MessageDeliveryStatus
         ) {
-            reconciledAck = Triple(chatRoomId, messageId, serverTimestamp)
+            reconciledAck = Triple(roomId, messageId, serverTimestamp)
         }
     }
 
@@ -187,7 +192,7 @@ class ChatRealtimeSyncManagerTest {
         val messageDto = ChatMessageDto(
             id = "server-456",
             tempId = "temp-123",
-            chatRoomId = "room-1",
+            roomId = "room-1",
             senderId = "user-1",
             content = "Hello",
             createdAt = Instant.fromEpochMilliseconds(1000L)
@@ -216,7 +221,7 @@ class ChatRealtimeSyncManagerTest {
             syncManager.initialize()
 
             fakeDataSource.incomingEventsFlow.emit(
-                WsServerEvent.MessageDeleted(chatRoomId = "room-1", messageId = "msg-999")
+                WsServerEvent.MessageDeleted(roomId = "room-1", messageId = "msg-999")
             )
 
             testScheduler.advanceUntilIdle()
@@ -252,7 +257,7 @@ class ChatRealtimeSyncManagerTest {
 
             fakeDataSource.incomingEventsFlow.emit(
                 WsServerEvent.ParticipantJoined(
-                    chatRoomId = "room-1",
+                    roomId = "room-1",
                     newUsers = listOf(newParticipant),
                     addedBy = addedBy
                 )
@@ -261,7 +266,7 @@ class ChatRealtimeSyncManagerTest {
             testScheduler.advanceUntilIdle()
             assertEquals(2, fakeDao.upsertedParticipants.size)
             assertEquals(1, fakeDao.upsertedCrossRefs.size)
-            assertEquals("room-1", fakeDao.upsertedCrossRefs[0].chatId)
+            assertEquals("room-1", fakeDao.upsertedCrossRefs[0].roomId)
             assertEquals("user-2", fakeDao.upsertedCrossRefs[0].userId)
         }
 
@@ -288,7 +293,7 @@ class ChatRealtimeSyncManagerTest {
 
         fakeDataSource.incomingEventsFlow.emit(
             WsServerEvent.ParticipantLeft(
-                chatRoomId = "room-1",
+                roomId = "room-1",
                 leftUser = leftUser
             )
         )

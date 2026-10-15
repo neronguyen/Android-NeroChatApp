@@ -45,7 +45,7 @@ fun ChatMessageDto.toDomain(
 ): ChatMessage {
     return ChatMessage(
         id = id,
-        chatRoomId = chatRoomId,
+        roomId = roomId,
         senderId = senderId,
         content = content,
         timestamp = createdAt,
@@ -58,7 +58,7 @@ fun ChatMessageDto.toEntity(
 ): ChatMessageEntity {
     return ChatMessageEntity(
         id = id,
-        chatRoomId = chatRoomId,
+        roomId = roomId,
         senderId = senderId,
         content = content,
         timestamp = createdAt.toEpochMilliseconds(),
@@ -69,7 +69,7 @@ fun ChatMessageDto.toEntity(
 fun ChatMessageEntity.toDomain(): ChatMessage {
     return ChatMessage(
         id = id,
-        chatRoomId = chatRoomId,
+        roomId = roomId,
         senderId = senderId,
         content = content,
         timestamp = Instant.fromEpochMilliseconds(timestamp),
@@ -80,7 +80,7 @@ fun ChatMessageEntity.toDomain(): ChatMessage {
 fun ChatMessage.toEntity(): ChatMessageEntity {
     return ChatMessageEntity(
         id = id,
-        chatRoomId = chatRoomId,
+        roomId = roomId,
         senderId = senderId,
         content = content,
         timestamp = timestamp.toEpochMilliseconds(),

@@ -22,7 +22,7 @@ data class ChatRoomWithDetails(
         entityColumn = "userId",
         associateBy = Junction(
             value = ChatRoomParticipantCrossRef::class,
-            parentColumn = "chatId",
+            parentColumn = "roomId",
             entityColumn = "userId"
         )
     )

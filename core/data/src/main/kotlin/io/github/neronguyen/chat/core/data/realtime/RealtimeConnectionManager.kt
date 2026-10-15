@@ -33,9 +33,25 @@ class RealtimeConnectionManager @Inject constructor(
     private val initialized = AtomicBoolean(false)
 
     fun initialize() {
-        if (!initialized.compareAndSet(expectedValue = false, newValue = true)) return
+        try {
+            ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+        } catch (_: Exception) {
+            // ProcessLifecycleOwner may not be available in unit test environments
+        }
+        startSupervisionIfNeeded()
+    }
 
-        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+    override fun onStart(owner: LifecycleOwner) {
+        startSupervisionIfNeeded()
+        isForeground.value = true
+    }
+
+    override fun onStop(owner: LifecycleOwner) {
+        isForeground.value = false
+    }
+
+    private fun startSupervisionIfNeeded() {
+        if (!initialized.compareAndSet(expectedValue = false, newValue = true)) return
 
         appScope.launch(ioDispatcher) {
             isForeground.collectLatest { foreground ->
@@ -47,14 +63,6 @@ class RealtimeConnectionManager @Inject constructor(
                 }
             }
         }
-    }
-
-    override fun onStart(owner: LifecycleOwner) {
-        isForeground.value = true
-    }
-
-    override fun onStop(owner: LifecycleOwner) {
-        isForeground.value = false
     }
 
     private suspend fun superviseConnection() {

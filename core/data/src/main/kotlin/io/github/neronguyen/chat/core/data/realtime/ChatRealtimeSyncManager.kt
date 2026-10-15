@@ -46,7 +46,7 @@ class ChatRealtimeSyncManager @Inject constructor(
     private suspend fun handleNewMessage(event: WsServerEvent.NewMessage) {
         val dto = event.message
         chatDao.reconcileMessageAck(
-            chatRoomId = dto.chatRoomId,
+            roomId = dto.roomId,
             messageId = dto.id,
             serverTimestamp = dto.createdAt.toEpochMilliseconds(),
             status = MessageDeliveryStatus.SENT
@@ -59,7 +59,7 @@ class ChatRealtimeSyncManager @Inject constructor(
 
     private suspend fun handleParticipantJoined(event: WsServerEvent.ParticipantJoined) {
         chatDao.handleParticipantJoined(
-            chatRoomId = event.chatRoomId,
+            roomId = event.roomId,
             newUsers = event.newUsers.map { it.toEntity() },
             addedBy = event.addedBy?.toEntity()
         )
@@ -67,7 +67,7 @@ class ChatRealtimeSyncManager @Inject constructor(
 
     private suspend fun handleParticipantLeft(event: WsServerEvent.ParticipantLeft) {
         chatDao.handleParticipantLeft(
-            chatRoomId = event.chatRoomId,
+            roomId = event.roomId,
             leftUser = event.leftUser.toEntity(),
             kickedBy = event.kickedBy?.toEntity()
         )

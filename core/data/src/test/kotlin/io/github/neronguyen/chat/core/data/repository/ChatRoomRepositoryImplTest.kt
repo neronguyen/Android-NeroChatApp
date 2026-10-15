@@ -47,9 +47,14 @@ class ChatRoomRepositoryImplTest {
         var lastUpdatedRoomTimestamp: Long? = null
 
         override fun getChatsWithDetails(): Flow<List<ChatRoomWithDetails>> = emptyFlow()
-        override fun getChatWithDetails(chatRoomId: String): Flow<ChatRoomWithDetails?> = emptyFlow()
-        override fun getRecentMessages(chatRoomId: String, limit: Int): Flow<List<ChatMessageEntity>> = emptyFlow()
+        override fun getChatWithDetails(roomId: String): Flow<ChatRoomWithDetails?> = emptyFlow()
+        override fun getRecentMessages(roomId: String, limit: Int): Flow<List<ChatMessageEntity>> =
+            emptyFlow()
         override suspend fun getMessageById(id: String): ChatMessageEntity? = null
+        override suspend fun getCrossRefsForRooms(roomIds: List<String>): List<ChatRoomParticipantCrossRef> =
+            emptyList()
+
+        override suspend fun deleteCrossRefs(crossRefs: List<ChatRoomParticipantCrossRef>) {}
 
         override suspend fun upsertRoom(room: ChatRoomEntity) {}
         override suspend fun upsertRooms(rooms: List<ChatRoomEntity>) {}
@@ -67,28 +72,28 @@ class ChatRoomRepositoryImplTest {
 
         override suspend fun deleteMessage(messageId: String) {}
 
-        override suspend fun deleteParticipantCrossRef(chatRoomId: String, userId: String) {}
+        override suspend fun deleteParticipantCrossRef(roomId: String, userId: String) {}
 
         override suspend fun handleParticipantJoined(
-            chatRoomId: String,
+            roomId: String,
             newUsers: List<ChatParticipantEntity>,
             addedBy: ChatParticipantEntity?
         ) {
         }
 
         override suspend fun handleParticipantLeft(
-            chatRoomId: String,
+            roomId: String,
             leftUser: ChatParticipantEntity,
             kickedBy: ChatParticipantEntity?
         ) {
         }
 
         override suspend fun updateRoomLastActivity(
-            chatRoomId: String,
+            roomId: String,
             messageId: String,
             timestamp: Long
         ) {
-            lastUpdatedRoomId = chatRoomId
+            lastUpdatedRoomId = roomId
             lastUpdatedRoomMessageId = messageId
             lastUpdatedRoomTimestamp = timestamp
         }
@@ -126,9 +131,10 @@ class ChatRoomRepositoryImplTest {
         var participantResponse: Either<DataError.Network, ChatParticipantDto> = Either.Left(DataError.Network.Unknown)
 
         override suspend fun getChatRoomsForUser(): Either<DataError.Network, List<ChatRoomDto>> = Either.Right(emptyList())
-        override suspend fun getChatRoom(chatRoomId: String): Either<DataError.Network, ChatRoomDto> = Either.Left(DataError.Network.Unknown)
+        override suspend fun getChatRoom(roomId: String): Either<DataError.Network, ChatRoomDto> =
+            Either.Left(DataError.Network.Unknown)
         override suspend fun getMessagesForChatRoom(
-            chatRoomId: String,
+            roomId: String,
             before: String?
         ): Either<DataError.Network, List<ChatMessageDto>> = Either.Right(emptyList())
         override suspend fun getParticipantByEmail(email: String): Either<DataError.Network, ChatParticipantDto> = participantResponse
@@ -143,11 +149,11 @@ class ChatRoomRepositoryImplTest {
             return groupChatResponse
         }
         override suspend fun addParticipantsToGroup(
-            chatRoomId: String,
+            roomId: String,
             userIds: List<String>
         ): Either<DataError.Network, ChatRoomDto> = Either.Left(DataError.Network.Unknown)
 
-        override suspend fun leaveChatRoom(chatRoomId: String): Either<DataError.Network, Unit> =
+        override suspend fun leaveChatRoom(roomId: String): Either<DataError.Network, Unit> =
             Either.Right(Unit)
 
         override suspend fun deleteMessage(messageId: String): Either<DataError.Network, Unit> =
@@ -294,7 +300,7 @@ class ChatRoomRepositoryImplTest {
         assertEquals(1, fakeDao.insertedMessages.size)
 
         val insertedMsg = fakeDao.insertedMessages.first()
-        assertEquals("room1", insertedMsg.chatRoomId)
+        assertEquals("room1", insertedMsg.roomId)
         assertEquals("Hello World", insertedMsg.content)
         assertEquals(MessageDeliveryStatus.SENDING, insertedMsg.deliveryStatus)
 

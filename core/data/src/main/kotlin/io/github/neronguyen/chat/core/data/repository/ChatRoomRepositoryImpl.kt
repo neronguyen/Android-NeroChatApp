@@ -40,8 +40,8 @@ internal class ChatRoomRepositoryImpl @Inject constructor(
     @Dispatcher(ChatDispatchers.Default) private val defaultDispatcher: CoroutineDispatcher
 ) : ChatRoomRepository {
 
-    override fun getMessages(chatRoomId: String): Flow<List<ChatMessage>> {
-        return chatDao.getRecentMessages(chatRoomId).map { entities ->
+    override fun getMessages(roomId: String): Flow<List<ChatMessage>> {
+        return chatDao.getRecentMessages(roomId).map { entities ->
             entities.map { it.toDomain() }
         }.flowOn(defaultDispatcher)
     }
@@ -52,8 +52,8 @@ internal class ChatRoomRepositoryImpl @Inject constructor(
         }.flowOn(defaultDispatcher)
     }
 
-    override suspend fun syncRecentMessages(chatRoomId: String): Either<DataError.Network, Unit> {
-        return networkDataSource.getMessagesForChatRoom(chatRoomId).map { dtos ->
+    override suspend fun syncRecentMessages(roomId: String): Either<DataError.Network, Unit> {
+        return networkDataSource.getMessagesForChatRoom(roomId).map { dtos ->
             chatDao.upsertMessages(dtos.map { it.toEntity(MessageDeliveryStatus.SENT) })
         }
     }
@@ -76,7 +76,7 @@ internal class ChatRoomRepositoryImpl @Inject constructor(
                         (dto.participants.map { it.userId } + dto.creator.userId).distinct()
 
                     allParticipantIds.map { userId ->
-                        ChatRoomParticipantCrossRef(chatId = dto.id, userId = userId)
+                        ChatRoomParticipantCrossRef(roomId = dto.id, userId = userId)
                     }
                 }
 
@@ -126,7 +126,7 @@ internal class ChatRoomRepositoryImpl @Inject constructor(
 
     @OptIn(ExperimentalUuidApi::class)
     override suspend fun sendMessage(
-        chatRoomId: String,
+        roomId: String,
         message: String
     ): Either<DataError, Unit> {
         val auth = tokenDataSource.authState.firstOrNull() as? AuthState.Authenticated
@@ -137,7 +137,7 @@ internal class ChatRoomRepositoryImpl @Inject constructor(
 
         val sendingEntity = ChatMessageEntity(
             id = messageId,
-            chatRoomId = chatRoomId,
+            roomId = roomId,
             senderId = auth.user.id,
             content = message,
             timestamp = now,
@@ -146,14 +146,14 @@ internal class ChatRoomRepositoryImpl @Inject constructor(
 
         chatDao.upsertMessage(sendingEntity)
         chatDao.updateRoomLastActivity(
-            chatRoomId = chatRoomId,
+            roomId = roomId,
             messageId = messageId,
             timestamp = now
         )
 
         return realtimeDataSource.sendMessage(
             WsClientMessage.NewMessage(
-                chatRoomId = chatRoomId,
+                roomId = roomId,
                 content = message,
                 messageId = messageId
             )

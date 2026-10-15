@@ -24,7 +24,7 @@ class ChatRoomMapperTest {
 
         val dto = ChatMessageDto(
             id = "msg1",
-            chatRoomId = "room1",
+            roomId = "room1",
             senderId = "sender1",
             content = "Hello there",
             createdAt = expectedInstant
@@ -33,7 +33,7 @@ class ChatRoomMapperTest {
         val domain = dto.toDomain()
 
         assertEquals("msg1", domain.id)
-        assertEquals("room1", domain.chatRoomId)
+        assertEquals("room1", domain.roomId)
         assertEquals("sender1", domain.senderId)
         assertEquals("Hello there", domain.content)
         assertEquals(expectedInstant, domain.timestamp)
@@ -47,7 +47,7 @@ class ChatRoomMapperTest {
 
         val dto = ChatMessageDto(
             id = "msg3",
-            chatRoomId = "room1",
+            roomId = "room1",
             senderId = "sender1",
             content = "Entity test",
             createdAt = expectedInstant,
@@ -57,7 +57,7 @@ class ChatRoomMapperTest {
         val entity = dto.toEntity(status = MessageDeliveryStatus.SENDING)
 
         assertEquals("msg3", entity.id)
-        assertEquals("room1", entity.chatRoomId)
+        assertEquals("room1", entity.roomId)
         assertEquals("sender1", entity.senderId)
         assertEquals("Entity test", entity.content)
         assertEquals(expectedMillis, entity.timestamp)
@@ -69,7 +69,7 @@ class ChatRoomMapperTest {
         val timeMillis = 1735732800000L // 2025-01-01T12:00:00Z
         val entity = ChatMessageEntity(
             id = "msg5",
-            chatRoomId = "room2",
+            roomId = "room2",
             senderId = "sender2",
             content = "Roundtrip message",
             timestamp = timeMillis,
@@ -78,7 +78,7 @@ class ChatRoomMapperTest {
 
         val domain = entity.toDomain()
         assertEquals("msg5", domain.id)
-        assertEquals("room2", domain.chatRoomId)
+        assertEquals("room2", domain.roomId)
         assertEquals("sender2", domain.senderId)
         assertEquals("Roundtrip message", domain.content)
         assertEquals(Instant.fromEpochMilliseconds(timeMillis), domain.timestamp)
@@ -86,7 +86,7 @@ class ChatRoomMapperTest {
 
         val convertedEntity = domain.toEntity()
         assertEquals("msg5", convertedEntity.id)
-        assertEquals("room2", convertedEntity.chatRoomId)
+        assertEquals("room2", convertedEntity.roomId)
         assertEquals("sender2", convertedEntity.senderId)
         assertEquals("Roundtrip message", convertedEntity.content)
         assertEquals(timeMillis, convertedEntity.timestamp)
@@ -128,7 +128,7 @@ class ChatRoomMapperTest {
         )
         val lastMessageDto = ChatMessageDto(
             id = "lastMsg1",
-            chatRoomId = "room10",
+            roomId = "room10",
             senderId = "creator1",
             content = "Last message content",
             createdAt = activityTime
@@ -214,7 +214,7 @@ class ChatRoomMapperTest {
         )
         val lastMessageEntity = ChatMessageEntity(
             id = "msg20",
-            chatRoomId = "room20",
+            roomId = "room20",
             senderId = "userA",
             content = "Hey User B",
             timestamp = activityTimeMillis,

@@ -23,16 +23,16 @@ interface ChatDao {
     fun getChatsWithDetails(): Flow<List<ChatRoomWithDetails>>
 
     @Transaction
-    @Query("SELECT * FROM chat_rooms WHERE id = :chatRoomId")
-    fun getChatWithDetails(chatRoomId: String): Flow<ChatRoomWithDetails?>
+    @Query("SELECT * FROM chat_rooms WHERE id = :roomId")
+    fun getChatWithDetails(roomId: String): Flow<ChatRoomWithDetails?>
 
-    @Query("SELECT * FROM chat_messages WHERE chatRoomId = :chatRoomId ORDER BY timestamp DESC LIMIT :limit")
-    fun getRecentMessages(chatRoomId: String, limit: Int = 20): Flow<List<ChatMessageEntity>>
+    @Query("SELECT * FROM chat_messages WHERE roomId = :roomId ORDER BY timestamp DESC LIMIT :limit")
+    fun getRecentMessages(roomId: String, limit: Int = 20): Flow<List<ChatMessageEntity>>
 
     @Query("SELECT * FROM chat_messages WHERE id = :id LIMIT 1")
     suspend fun getMessageById(id: String): ChatMessageEntity?
 
-    @Query("SELECT * FROM chat_room_participants WHERE chatId IN (:roomIds)")
+    @Query("SELECT * FROM chat_room_participants WHERE roomId IN (:roomIds)")
     suspend fun getCrossRefsForRooms(roomIds: List<String>): List<ChatRoomParticipantCrossRef>
 
     // --- Upserts ---
@@ -66,11 +66,11 @@ interface ChatDao {
     @Query("DELETE FROM chat_messages WHERE id = :messageId")
     suspend fun deleteMessage(messageId: String)
 
-    @Query("DELETE FROM chat_room_participants WHERE chatId = :chatRoomId AND userId = :userId")
-    suspend fun deleteParticipantCrossRef(chatRoomId: String, userId: String)
+    @Query("DELETE FROM chat_room_participants WHERE roomId = :roomId AND userId = :userId")
+    suspend fun deleteParticipantCrossRef(roomId: String, userId: String)
 
-    @Query("UPDATE chat_rooms SET lastMessageId = :messageId, lastActivityAt = :timestamp WHERE id = :chatRoomId")
-    suspend fun updateRoomLastActivity(chatRoomId: String, messageId: String, timestamp: Long)
+    @Query("UPDATE chat_rooms SET lastMessageId = :messageId, lastActivityAt = :timestamp WHERE id = :roomId")
+    suspend fun updateRoomLastActivity(roomId: String, messageId: String, timestamp: Long)
 
     @Delete
     suspend fun deleteCrossRefs(crossRefs: List<ChatRoomParticipantCrossRef>)
@@ -79,13 +79,13 @@ interface ChatDao {
 
     @Transaction
     suspend fun reconcileMessageAck(
-        chatRoomId: String,
+        roomId: String,
         messageId: String,
         serverTimestamp: Long,
         status: MessageDeliveryStatus = MessageDeliveryStatus.SENT
     ) {
         updateMessageStatusAndTimestamp(messageId, serverTimestamp, status)
-        updateRoomLastActivity(chatRoomId, messageId, serverTimestamp)
+        updateRoomLastActivity(roomId, messageId, serverTimestamp)
     }
 
     @Query(
@@ -115,7 +115,7 @@ interface ChatDao {
 
         val allParticipantIds = (participants.map { it.userId } + creator.userId).distinct()
         val crossRefs = allParticipantIds.map { userId ->
-            ChatRoomParticipantCrossRef(chatId = room.id, userId = userId)
+            ChatRoomParticipantCrossRef(roomId = room.id, userId = userId)
         }
 
         upsertCrossRefs(crossRefs)
@@ -148,7 +148,7 @@ interface ChatDao {
 
     @Transaction
     suspend fun handleParticipantJoined(
-        chatRoomId: String,
+        roomId: String,
         newUsers: List<ChatParticipantEntity>,
         addedBy: ChatParticipantEntity? = null
     ) {
@@ -156,7 +156,7 @@ interface ChatDao {
         if (newUsers.isNotEmpty()) {
             upsertParticipants(newUsers)
             val crossRefs = newUsers.map { participant ->
-                ChatRoomParticipantCrossRef(chatId = chatRoomId, userId = participant.userId)
+                ChatRoomParticipantCrossRef(roomId = roomId, userId = participant.userId)
             }
             upsertCrossRefs(crossRefs)
         }
@@ -164,11 +164,11 @@ interface ChatDao {
 
     @Transaction
     suspend fun handleParticipantLeft(
-        chatRoomId: String,
+        roomId: String,
         leftUser: ChatParticipantEntity,
         kickedBy: ChatParticipantEntity? = null
     ) {
         kickedBy?.let { upsertParticipant(it) }
-        deleteParticipantCrossRef(chatRoomId = chatRoomId, userId = leftUser.userId)
+        deleteParticipantCrossRef(roomId = roomId, userId = leftUser.userId)
     }
 }

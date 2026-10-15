@@ -9,10 +9,10 @@ import io.github.neronguyen.chat.core.network.model.ChatRoomDto
 interface ChatNetworkDataSource {
     suspend fun getChatRoomsForUser(): Either<DataError.Network, List<ChatRoomDto>>
 
-    suspend fun getChatRoom(chatRoomId: String): Either<DataError.Network, ChatRoomDto>
+    suspend fun getChatRoom(roomId: String): Either<DataError.Network, ChatRoomDto>
 
     suspend fun getMessagesForChatRoom(
-        chatRoomId: String,
+        roomId: String,
         before: String? = null
     ): Either<DataError.Network, List<ChatMessageDto>>
 
@@ -29,11 +29,11 @@ interface ChatNetworkDataSource {
     ): Either<DataError.Network, ChatRoomDto>
 
     suspend fun addParticipantsToGroup(
-        chatRoomId: String,
+        roomId: String,
         userIds: List<String>
     ): Either<DataError.Network, ChatRoomDto>
 
-    suspend fun leaveChatRoom(chatRoomId: String): Either<DataError.Network, Unit>
+    suspend fun leaveChatRoom(roomId: String): Either<DataError.Network, Unit>
 
     suspend fun deleteMessage(messageId: String): Either<DataError.Network, Unit>
 }
