@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chats_title">Chats</string>
+    <string name="new_chat">New chat</string>
+    <string name="account">Account</string>
+    <string name="search_conversations_placeholder">Search conversations…</string>
+    <string name="clear_search">Clear search</string>
+    <string name="syncing_messages">Connecting… syncing messages</string>
+    <string name="dismiss_banner">Dismiss banner</string>
+    <string name="retry_sync">Retry</string>
+    <string name="message_deleted">Message deleted</string>
+    <string name="no_messages_yet">No messages yet</string>
+    <string name="outgoing_message_prefix">You: %1$s</string>
+    <string name="group_message_prefix">%1$s: %2$s</string>
+    <string name="direct_chat_fallback_title">Direct chat</string>
+    <string name="group_chat_fallback_title">Group chat</string>
+    <string name="unknown_chat_fallback_title">Conversation</string>
+    <string name="unknown_participant">Unknown participant</string>
+    <string name="yesterday">Yesterday</string>
+    <string name="empty_chats_title">No conversations yet</string>
+    <string name="empty_chats_subtitle">Start a direct or group chat to begin messaging.</string>
+    <string name="start_new_chat">Start a chat</string>
+    <string name="no_matching_conversations">No conversations match your search.</string>
+    <string name="encrypted_direct_chats_footer">End-to-end encrypted direct chats</string>
+</resources>

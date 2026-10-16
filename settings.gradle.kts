@@ -30,6 +30,7 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 include(":app")
 
 include(":feature:auth")
+include(":feature:chat")
 
 include(":core:common")
 include(":core:model")
