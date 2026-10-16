@@ -93,10 +93,13 @@ internal class ChatRoomRepositoryImpl @Inject constructor(
     }
 
     private suspend fun saveChatRoomDto(dto: ChatRoomDto) {
+        val participants = (dto.participants + dto.creator)
+            .distinctBy { it.userId }
+            .map { it.toEntity() }
+
         chatDao.insertFullChat(
             room = dto.toEntity(),
-            creator = dto.creator.toEntity(),
-            participants = dto.participants.map { it.toEntity() },
+            participants = participants,
             lastMessage = dto.lastMessage?.toEntity(MessageDeliveryStatus.SENT)
         )
     }

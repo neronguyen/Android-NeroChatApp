@@ -197,18 +197,15 @@ interface ChatDao {
     @Transaction
     suspend fun insertFullChat(
         room: ChatRoomEntity,
-        creator: ChatParticipantEntity,
         participants: List<ChatParticipantEntity>,
         lastMessage: ChatMessageEntity?
     ) {
-        upsertParticipant(creator)
         upsertParticipants(participants)
-        lastMessage?.let { upsertMessage(it) }
         upsertRoom(room)
+        lastMessage?.let { upsertMessage(it) }
 
-        val allParticipantIds = (participants.map { it.userId } + creator.userId).distinct()
-        val crossRefs = allParticipantIds.map { userId ->
-            ChatRoomParticipantCrossRef(roomId = room.id, userId = userId)
+        val crossRefs = participants.distinctBy { it.userId }.map { participant ->
+            ChatRoomParticipantCrossRef(roomId = room.id, userId = participant.userId)
         }
 
         upsertCrossRefs(crossRefs)
@@ -224,8 +221,8 @@ interface ChatDao {
         if (rooms.isEmpty()) return
 
         upsertParticipants(participants)
-        upsertMessages(lastMessages)
         upsertRooms(rooms)
+        upsertMessages(lastMessages)
 
         val roomIds = rooms.map { it.id }
         val existingCrossRefs = roomIds.chunked(500).flatMap { chunk ->
