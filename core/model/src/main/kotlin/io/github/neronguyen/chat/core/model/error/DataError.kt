@@ -8,4 +8,12 @@ sealed interface DataError {
         Serialization,
         Unknown
     }
+
+    enum class Realtime : DataError {
+        SocketError
+    }
+
+    enum class Local : DataError {
+        Unauthorized,
+    }
 }

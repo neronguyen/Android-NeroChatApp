@@ -1,0 +1,103 @@
+package io.github.neronguyen.chat.core.data.repository
+
+import arrow.core.Either
+import io.github.neronguyen.chat.core.common.network.ChatDispatchers
+import io.github.neronguyen.chat.core.common.network.Dispatcher
+import io.github.neronguyen.chat.core.data.mapper.toDomain
+import io.github.neronguyen.chat.core.data.mapper.toEntity
+import io.github.neronguyen.chat.core.database.dao.ChatDao
+import io.github.neronguyen.chat.core.database.entity.ChatRoomParticipantCrossRef
+import io.github.neronguyen.chat.core.model.ChatParticipant
+import io.github.neronguyen.chat.core.model.ChatRoom
+import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
+import io.github.neronguyen.chat.core.model.error.DataError
+import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
+import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
+import io.github.neronguyen.chat.core.network.model.ChatRoomDto
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+internal class ChatRoomRepositoryImpl @Inject constructor(
+    private val chatDao: ChatDao,
+    private val networkDataSource: ChatNetworkDataSource,
+    @Dispatcher(ChatDispatchers.Default) private val defaultDispatcher: CoroutineDispatcher
+) : ChatRoomRepository {
+
+    override fun getChats(): Flow<List<ChatRoom>> {
+        return chatDao.getChatsWithDetails().map { relations ->
+            relations.map { it.toDomain() }
+        }.flowOn(defaultDispatcher)
+    }
+
+    override suspend fun syncChats(): Either<DataError.Network, Unit> {
+        return withContext(context = defaultDispatcher) {
+            networkDataSource.getChatRoomsForUser().map { roomDtos ->
+                val rooms = roomDtos.map { it.toEntity() }
+
+                val participants = mutableSetOf<ChatParticipantDto>()
+                roomDtos.forEach { participants.addAll(it.participants + it.creator) }
+                val participantEntities = participants.map { it.toEntity() }
+
+                val lastMessages = roomDtos.mapNotNull {
+                    it.lastMessage?.toEntity(MessageDeliveryStatus.SENT)
+                }
+
+                val crossRefs = roomDtos.flatMap { dto ->
+                    val allParticipantIds =
+                        (dto.participants.map { it.userId } + dto.creator.userId).distinct()
+
+                    allParticipantIds.map { userId ->
+                        ChatRoomParticipantCrossRef(roomId = dto.id, userId = userId)
+                    }
+                }
+
+                chatDao.insertFullChats(
+                    rooms = rooms,
+                    participants = participantEntities,
+                    lastMessages = lastMessages,
+                    crossRefs = crossRefs
+                )
+            }
+        }
+    }
+
+    override suspend fun findChatParticipantByEmail(email: String): Either<DataError.Network, ChatParticipant> {
+        return networkDataSource.getParticipantByEmail(email).map { it.toDomain() }
+    }
+
+    override suspend fun createDirectChatRoom(
+        targetUserId: String,
+        message: String
+    ): Either<DataError.Network, ChatRoom> {
+        return networkDataSource.createDirectChatRoom(targetUserId, message).map { dto ->
+            saveChatRoomDto(dto)
+            dto.toDomain()
+        }
+    }
+
+    override suspend fun createGroupChatRoom(
+        participantIds: List<String>,
+        name: String?
+    ): Either<DataError.Network, ChatRoom> {
+        val trimmedName = name?.trim()?.ifEmpty { null }
+        return networkDataSource.createGroupChatRoom(participantIds, trimmedName).map { dto ->
+            saveChatRoomDto(dto)
+            dto.toDomain()
+        }
+    }
+
+    private suspend fun saveChatRoomDto(dto: ChatRoomDto) {
+        chatDao.insertFullChat(
+            room = dto.toEntity(),
+            creator = dto.creator.toEntity(),
+            participants = dto.participants.map { it.toEntity() },
+            lastMessage = dto.lastMessage?.toEntity(MessageDeliveryStatus.SENT)
+        )
+    }
+}

@@ -100,10 +100,10 @@ class AuthRepositoryImplTest {
         val networkDataSource = FakeAuthNetworkDataSource()
         val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
 
-        val result = repository.refreshToken("stale_access_token")
+        val result = repository.refresh("stale_access_token")
 
         assertTrue(result.isLeft())
-        assertEquals(DataError.Network.Unknown, (result as Either.Left).value)
+        assertEquals(DataError.Local.Unauthorized, (result as Either.Left).value)
     }
 
     @Test
@@ -130,7 +130,7 @@ class AuthRepositoryImplTest {
         }
         val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
 
-        val result = repository.refreshToken("old_access_token")
+        val result = repository.refresh("old_access_token")
 
         assertTrue(result.isRight())
         assertEquals("new_access_token", (result as Either.Right).value)
@@ -149,7 +149,7 @@ class AuthRepositoryImplTest {
             val networkDataSource = FakeAuthNetworkDataSource()
             val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
 
-            val result = repository.refreshToken("stale_access_token")
+            val result = repository.refresh("stale_access_token")
 
             assertTrue(result.isRight())
             assertEquals("already_refreshed_access_token", (result as Either.Right).value)
@@ -184,8 +184,8 @@ class AuthRepositoryImplTest {
 
             val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
 
-            val call1 = async { repository.refreshToken("stale_token") }
-            val call2 = async { repository.refreshToken("stale_token") }
+            val call1 = async { repository.refresh("stale_token") }
+            val call2 = async { repository.refresh("stale_token") }
 
             val results = awaitAll(call1, call2)
 
@@ -209,7 +209,7 @@ class AuthRepositoryImplTest {
         }
         val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
 
-        val result = repository.refreshToken("stale_token")
+        val result = repository.refresh("stale_token")
 
         assertTrue(result.isLeft())
         assertEquals(DataError.Network.RequestTimeout, (result as Either.Left).value)
@@ -260,7 +260,7 @@ class AuthRepositoryImplTest {
 
         // Launch logout and refresh token concurrently
         val logoutCall = async { repository.logout() }
-        val refreshCall = async { repository.refreshToken("stale_token") }
+        val refreshCall = async { repository.refresh("stale_token") }
 
         val logoutResult = logoutCall.await()
         val refreshResult = refreshCall.await()
@@ -268,7 +268,7 @@ class AuthRepositoryImplTest {
         assertTrue(logoutResult.isRight())
         // Since logout acquired lock first and cleared data, refresh returns error
         assertTrue(refreshResult.isLeft())
-        assertEquals(DataError.Network.Unknown, (refreshResult as Either.Left).value)
+        assertEquals(DataError.Local.Unauthorized, (refreshResult as Either.Left).value)
         assertTrue(tokenDataSource.clearCalled)
     }
 }

@@ -11,5 +11,7 @@ fun DataError.asUiText(): String {
         DataError.Network.RequestTimeout -> stringResource(R.string.error_timeout)
         DataError.Network.Serialization -> stringResource(R.string.error_serialization)
         DataError.Network.Unknown -> stringResource(R.string.error_unknown)
+        DataError.Realtime.SocketError -> stringResource(R.string.error_socket)
+        DataError.Local.Unauthorized -> stringResource(R.string.error_unauthorized)
     }
 }

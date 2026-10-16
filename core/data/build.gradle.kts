@@ -30,12 +30,18 @@ kotlin {
 
 dependencies {
     implementation(projects.core.model)
+    implementation(projects.core.common)
+
     implementation(projects.core.network)
     implementation(projects.core.datastore)
     implementation(projects.core.database)
 
     // Arrow
     implementation(libs.arrow.core)
+
+    // AndroidX Lifecycle
+    implementation(libs.androidx.lifecycle.process)
+    implementation(libs.androidx.lifecycle.runtime)
 
     // Hilt
     implementation(libs.hilt.android)

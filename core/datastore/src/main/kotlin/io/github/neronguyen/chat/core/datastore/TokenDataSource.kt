@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface TokenDataSource {
     val authState: Flow<AuthState>
+
     suspend fun getAccessToken(): String?
     suspend fun getRefreshToken(): String?
 
