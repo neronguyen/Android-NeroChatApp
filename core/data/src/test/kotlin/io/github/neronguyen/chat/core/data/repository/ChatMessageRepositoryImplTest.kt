@@ -72,13 +72,34 @@ class ChatMessageRepositoryImplTest {
             roomId: String,
             remoteMessages: List<ChatMessageEntity>
         ) {
-            if (remoteMessages.isEmpty()) return
-            val newestLocalTimestamp = getNewestSentMessageTimestamp(roomId)
-            val oldestRemoteTimestamp = remoteMessages.minOf { it.timestamp }
-            if (newestLocalTimestamp != null && oldestRemoteTimestamp > newestLocalTimestamp) {
-                clearSentMessagesForRoom(roomId)
+            require(remoteMessages.all { it.roomId == roomId }) {
+                "All remote messages must belong to roomId=$roomId"
             }
-            upsertMessages(remoteMessages)
+
+            if (remoteMessages.isEmpty()) {
+                clearSentMessagesForRoom(roomId)
+            } else {
+                val newestLocalTimestamp = getNewestSentMessageTimestamp(roomId)
+                val oldestRemoteTimestamp = remoteMessages.minOf { it.timestamp }
+
+                val hasMessageGap =
+                    newestLocalTimestamp != null &&
+                            oldestRemoteTimestamp > newestLocalTimestamp
+
+                if (hasMessageGap) {
+                    clearSentMessagesForRoom(roomId)
+                }
+
+                upsertMessages(remoteMessages)
+            }
+
+            val newestMessage = getNewestMessageForRoom(roomId)
+
+            updateRoomLastActivity(
+                roomId = roomId,
+                messageId = newestMessage?.id,
+                timestamp = newestMessage?.timestamp
+            )
         }
 
         override suspend fun getCrossRefsForRooms(roomIds: List<String>): List<ChatRoomParticipantCrossRef> =
@@ -144,7 +165,9 @@ class ChatMessageRepositoryImplTest {
         ) {
         }
 
-        override suspend fun getNewestMessageForRoom(roomId: String): ChatMessageEntity? = null
+        override suspend fun getNewestMessageForRoom(roomId: String): ChatMessageEntity? {
+            return insertedMessages.filter { it.roomId == roomId }.maxByOrNull { it.timestamp }
+        }
 
         override suspend fun updateRoomLastActivity(
             roomId: String,
@@ -285,6 +308,46 @@ class ChatMessageRepositoryImplTest {
         assertEquals(true, (result as Either.Right).value)
         assertNull(fakeNetwork.lastRequestedBefore)
         assertEquals(1, fakeDao.insertedMessages.size)
+    }
+
+    @Test
+    fun `syncRecentMessages clears sent messages and updates room summary when remote is empty`() =
+        runTest {
+            val fakeDao = FakeChatDao().apply {
+                insertedMessages.add(
+                    ChatMessageEntity(
+                        id = "sent-1",
+                        roomId = "room1",
+                        senderId = "u1",
+                        content = "sent message",
+                        timestamp = 1000L,
+                        deliveryStatus = MessageDeliveryStatus.SENT
+                    )
+                )
+            }
+            val fakeNetwork = FakeChatNetworkDataSource().apply {
+                messagesToReturn = ChatMessageSliceDto(messages = emptyList(), hasMore = false)
+            }
+            val fakeRealtime = FakeChatRealtimeDataSource()
+            val fakeToken = FakeTokenDataSource()
+
+            val repository = ChatMessageRepositoryImpl(
+                chatDao = fakeDao,
+                realtimeDataSource = fakeRealtime,
+                networkDataSource = fakeNetwork,
+                tokenDataSource = fakeToken,
+                defaultDispatcher = testDispatcher
+            )
+
+            val result = repository.syncRecentMessages("room1")
+
+            assertTrue(result.isRight())
+            assertEquals(false, (result as Either.Right).value)
+            assertEquals(1, fakeDao.clearSentMessagesCalledCount)
+            assertEquals(0, fakeDao.insertedMessages.size)
+            assertEquals("room1", fakeDao.lastUpdatedRoomId)
+            assertNull(fakeDao.lastUpdatedRoomMessageId)
+            assertNull(fakeDao.lastUpdatedRoomTimestamp)
     }
 
     @Test
