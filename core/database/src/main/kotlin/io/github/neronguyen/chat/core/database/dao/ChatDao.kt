@@ -32,6 +32,14 @@ interface ChatDao {
     @Query("SELECT * FROM chat_messages WHERE id = :id LIMIT 1")
     suspend fun getMessageById(id: String): ChatMessageEntity?
 
+    @Query(
+        """
+        SELECT MIN(timestamp) FROM chat_messages 
+        WHERE roomId = :roomId AND deliveryStatus = 'SENT'
+    """
+    )
+    suspend fun getOldestSentMessageTimestamp(roomId: String): Long?
+
     @Query("SELECT * FROM chat_room_participants WHERE roomId IN (:roomIds)")
     suspend fun getCrossRefsForRooms(roomIds: List<String>): List<ChatRoomParticipantCrossRef>
 

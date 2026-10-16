@@ -2,9 +2,10 @@ package io.github.neronguyen.chat.core.network
 
 import arrow.core.Either
 import io.github.neronguyen.chat.core.model.error.DataError
-import io.github.neronguyen.chat.core.network.model.ChatMessageDto
+import io.github.neronguyen.chat.core.network.model.ChatMessageSliceDto
 import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
 import io.github.neronguyen.chat.core.network.model.ChatRoomDto
+import kotlin.time.Instant
 
 interface ChatNetworkDataSource {
     suspend fun getChatRoomsForUser(): Either<DataError.Network, List<ChatRoomDto>>
@@ -13,8 +14,8 @@ interface ChatNetworkDataSource {
 
     suspend fun getMessagesForChatRoom(
         roomId: String,
-        before: String? = null
-    ): Either<DataError.Network, List<ChatMessageDto>>
+        before: Instant? = null
+    ): Either<DataError.Network, ChatMessageSliceDto>
 
     suspend fun getParticipantByEmail(email: String): Either<DataError.Network, ChatParticipantDto>
 

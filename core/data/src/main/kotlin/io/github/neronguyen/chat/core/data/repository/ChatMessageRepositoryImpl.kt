@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Instant
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -40,9 +41,28 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
         }.flowOn(defaultDispatcher)
     }
 
-    override suspend fun syncRecentMessages(roomId: String): Either<DataError.Network, Unit> {
-        return networkDataSource.getMessagesForChatRoom(roomId).map { dtos ->
-            chatDao.upsertMessages(dtos.map { it.toEntity(MessageDeliveryStatus.SENT) })
+    override suspend fun syncRecentMessages(roomId: String): Either<DataError.Network, Boolean> {
+        return networkDataSource.getMessagesForChatRoom(roomId, before = null).map { slice ->
+            chatDao.upsertMessages(slice.messages.map { it.toEntity(MessageDeliveryStatus.SENT) })
+            slice.hasMore
+        }
+    }
+
+    override suspend fun loadOlderMessages(roomId: String): Either<DataError.Network, Boolean> {
+        val oldestTimestamp = chatDao.getOldestSentMessageTimestamp(roomId)
+            ?: return syncRecentMessages(roomId)
+
+        val before = Instant.fromEpochMilliseconds(oldestTimestamp)
+
+        return networkDataSource.getMessagesForChatRoom(
+            roomId = roomId,
+            before = before
+        ).map { slice ->
+            if (slice.messages.isNotEmpty()) {
+                chatDao.upsertMessages(slice.messages.map { it.toEntity(MessageDeliveryStatus.SENT) })
+            }
+
+            slice.hasMore
         }
     }
 

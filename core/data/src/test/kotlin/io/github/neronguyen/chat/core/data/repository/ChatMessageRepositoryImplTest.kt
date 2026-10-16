@@ -15,6 +15,7 @@ import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.model.ChatMessageDto
+import io.github.neronguyen.chat.core.network.model.ChatMessageSliceDto
 import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
 import io.github.neronguyen.chat.core.network.model.ChatRoomDto
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
@@ -32,6 +33,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatMessageRepositoryImplTest {
@@ -41,6 +43,7 @@ class ChatMessageRepositoryImplTest {
     private class FakeChatDao : ChatDao {
         val insertedMessages = mutableListOf<ChatMessageEntity>()
         val updatedStatuses = mutableMapOf<String, MessageDeliveryStatus>()
+        var oldestSentTimestampToReturn: Long? = null
         var lastUpdatedRoomId: String? = null
         var lastUpdatedRoomMessageId: String? = null
         var lastUpdatedRoomTimestamp: Long? = null
@@ -51,6 +54,9 @@ class ChatMessageRepositoryImplTest {
             emptyFlow()
 
         override suspend fun getMessageById(id: String): ChatMessageEntity? = null
+        override suspend fun getOldestSentMessageTimestamp(roomId: String): Long? =
+            oldestSentTimestampToReturn
+
         override suspend fun getCrossRefsForRooms(roomIds: List<String>): List<ChatRoomParticipantCrossRef> =
             emptyList()
 
@@ -65,7 +71,9 @@ class ChatMessageRepositoryImplTest {
             insertedMessages.add(message)
         }
 
-        override suspend fun upsertMessages(messages: List<ChatMessageEntity>) {}
+        override suspend fun upsertMessages(messages: List<ChatMessageEntity>) {
+            insertedMessages.addAll(messages)
+        }
 
         override suspend fun updateDeliveryStatus(
             messageId: String,
@@ -145,6 +153,9 @@ class ChatMessageRepositoryImplTest {
     }
 
     private class FakeChatNetworkDataSource : ChatNetworkDataSource {
+        var lastRequestedBefore: Instant? = null
+        var messagesToReturn = ChatMessageSliceDto(messages = emptyList(), hasMore = false)
+
         override suspend fun getChatRoomsForUser(): Either<DataError.Network, List<ChatRoomDto>> =
             Either.Right(emptyList())
 
@@ -153,8 +164,11 @@ class ChatMessageRepositoryImplTest {
 
         override suspend fun getMessagesForChatRoom(
             roomId: String,
-            before: String?
-        ): Either<DataError.Network, List<ChatMessageDto>> = Either.Right(emptyList())
+            before: Instant?
+        ): Either<DataError.Network, ChatMessageSliceDto> {
+            lastRequestedBefore = before
+            return Either.Right(messagesToReturn)
+        }
 
         override suspend fun getParticipantByEmail(email: String): Either<DataError.Network, ChatParticipantDto> =
             Either.Left(DataError.Network.Unknown)
@@ -198,6 +212,71 @@ class ChatMessageRepositoryImplTest {
         override suspend fun saveAuthData(user: User, accessToken: String, refreshToken: String) {}
         override suspend fun saveTokens(accessToken: String, refreshToken: String) {}
         override suspend fun clearAuthData() {}
+    }
+
+    @Test
+    fun `syncRecentMessages queries network with before null and returns hasMore`() = runTest {
+        val fakeDao = FakeChatDao()
+        val fakeRealtime = FakeChatRealtimeDataSource()
+        val sampleDto =
+            ChatMessageDto("m1", "room1", "u1", "hello", Instant.fromEpochMilliseconds(1000L))
+        val fakeNetwork = FakeChatNetworkDataSource().apply {
+            messagesToReturn = ChatMessageSliceDto(messages = listOf(sampleDto), hasMore = true)
+        }
+        val fakeToken = FakeTokenDataSource()
+
+        val repository = ChatMessageRepositoryImpl(
+            chatDao = fakeDao,
+            realtimeDataSource = fakeRealtime,
+            networkDataSource = fakeNetwork,
+            tokenDataSource = fakeToken,
+            defaultDispatcher = testDispatcher
+        )
+
+        val result = repository.syncRecentMessages("room1")
+
+        assertTrue(result.isRight())
+        assertEquals(true, (result as Either.Right).value)
+        assertNull(fakeNetwork.lastRequestedBefore)
+        assertEquals(1, fakeDao.insertedMessages.size)
+    }
+
+    @Test
+    fun `loadOlderMessages passes oldest timestamp as before Instant to network`() = runTest {
+        val oldestTimeMillis = 1700000000000L
+        val fakeDao = FakeChatDao().apply {
+            oldestSentTimestampToReturn = oldestTimeMillis
+        }
+        val fakeRealtime = FakeChatRealtimeDataSource()
+        val sampleDto = ChatMessageDto(
+            "m0",
+            "room1",
+            "u1",
+            "older msg",
+            Instant.fromEpochMilliseconds(oldestTimeMillis - 1000L)
+        )
+        val fakeNetwork = FakeChatNetworkDataSource().apply {
+            messagesToReturn = ChatMessageSliceDto(messages = listOf(sampleDto), hasMore = false)
+        }
+        val fakeToken = FakeTokenDataSource()
+
+        val repository = ChatMessageRepositoryImpl(
+            chatDao = fakeDao,
+            realtimeDataSource = fakeRealtime,
+            networkDataSource = fakeNetwork,
+            tokenDataSource = fakeToken,
+            defaultDispatcher = testDispatcher
+        )
+
+        val result = repository.loadOlderMessages("room1")
+
+        assertTrue(result.isRight())
+        assertEquals(false, (result as Either.Right).value)
+        assertEquals(
+            Instant.fromEpochMilliseconds(oldestTimeMillis),
+            fakeNetwork.lastRequestedBefore
+        )
+        assertEquals(1, fakeDao.insertedMessages.size)
     }
 
     @Test

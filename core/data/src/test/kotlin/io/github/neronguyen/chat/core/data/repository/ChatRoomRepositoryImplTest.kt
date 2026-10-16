@@ -10,7 +10,7 @@ import io.github.neronguyen.chat.core.database.model.ChatRoomWithDetails
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
-import io.github.neronguyen.chat.core.network.model.ChatMessageDto
+import io.github.neronguyen.chat.core.network.model.ChatMessageSliceDto
 import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
 import io.github.neronguyen.chat.core.network.model.ChatRoomDto
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -40,6 +40,7 @@ class ChatRoomRepositoryImplTest {
         override fun getRecentMessages(roomId: String, limit: Int): Flow<List<ChatMessageEntity>> =
             emptyFlow()
         override suspend fun getMessageById(id: String): ChatMessageEntity? = null
+        override suspend fun getOldestSentMessageTimestamp(roomId: String): Long? = null
         override suspend fun getCrossRefsForRooms(roomIds: List<String>): List<ChatRoomParticipantCrossRef> =
             emptyList()
 
@@ -122,8 +123,9 @@ class ChatRoomRepositoryImplTest {
             Either.Left(DataError.Network.Unknown)
         override suspend fun getMessagesForChatRoom(
             roomId: String,
-            before: String?
-        ): Either<DataError.Network, List<ChatMessageDto>> = Either.Right(emptyList())
+            before: Instant?
+        ): Either<DataError.Network, ChatMessageSliceDto> =
+            Either.Right(ChatMessageSliceDto(messages = emptyList(), hasMore = false))
         override suspend fun getParticipantByEmail(email: String): Either<DataError.Network, ChatParticipantDto> = participantResponse
         override suspend fun createDirectChatRoom(targetUserId: String, message: String): Either<DataError.Network, ChatRoomDto> {
             lastDirectTargetUserId = targetUserId

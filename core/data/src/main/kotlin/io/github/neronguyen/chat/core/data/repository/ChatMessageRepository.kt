@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface ChatMessageRepository {
     fun getMessages(roomId: String): Flow<List<ChatMessage>>
-    suspend fun syncRecentMessages(roomId: String): Either<DataError.Network, Unit>
+    suspend fun syncRecentMessages(roomId: String): Either<DataError.Network, Boolean>
+    suspend fun loadOlderMessages(roomId: String): Either<DataError.Network, Boolean>
     suspend fun sendMessage(roomId: String, message: String): Either<DataError, Unit>
 }

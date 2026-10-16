@@ -7,7 +7,7 @@ import io.github.neronguyen.chat.core.network.BuildConfig
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.di.AuthenticatedOkHttp
 import io.github.neronguyen.chat.core.network.model.AddChatParticipantRequest
-import io.github.neronguyen.chat.core.network.model.ChatMessageDto
+import io.github.neronguyen.chat.core.network.model.ChatMessageSliceDto
 import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
 import io.github.neronguyen.chat.core.network.model.ChatRoomDto
 import io.github.neronguyen.chat.core.network.model.CreateDirectChatRoomRequest
@@ -27,6 +27,7 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Instant
 
 private interface RetrofitChatNetworkApi {
 
@@ -41,8 +42,8 @@ private interface RetrofitChatNetworkApi {
     @GET("api/chat/rooms/{roomId}/messages")
     suspend fun getMessagesForChatRoom(
         @Path("roomId") roomId: String,
-        @Query("before") before: String? = null
-    ): Response<List<ChatMessageDto>>
+        @Query("before") before: Instant? = null
+    ): Response<ChatMessageSliceDto>
 
     @GET("api/chat/participants")
     suspend fun getParticipantByEmail(
@@ -100,8 +101,8 @@ internal class RetrofitChatNetwork @Inject constructor(
 
     override suspend fun getMessagesForChatRoom(
         roomId: String,
-        before: String?
-    ): Either<DataError.Network, List<ChatMessageDto>> =
+        before: Instant?
+    ): Either<DataError.Network, ChatMessageSliceDto> =
         either { safeCall { networkApi.getMessagesForChatRoom(roomId, before) } }
 
     override suspend fun getParticipantByEmail(email: String): Either<DataError.Network, ChatParticipantDto> =
