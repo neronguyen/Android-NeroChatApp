@@ -48,6 +48,16 @@ interface ChatDao {
     )
     suspend fun getNewestSentMessageTimestamp(roomId: String): Long?
 
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE roomId = :roomId
+        ORDER BY timestamp DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getNewestMessageForRoom(roomId: String): ChatMessageEntity?
+
     @Query("SELECT * FROM chat_room_participants WHERE roomId IN (:roomIds)")
     suspend fun getCrossRefsForRooms(roomIds: List<String>): List<ChatRoomParticipantCrossRef>
 
@@ -100,8 +110,19 @@ interface ChatDao {
     @Query("DELETE FROM chat_room_participants WHERE roomId = :roomId AND userId = :userId")
     suspend fun deleteParticipantCrossRef(roomId: String, userId: String)
 
-    @Query("UPDATE chat_rooms SET lastMessageId = :messageId, lastActivityAt = :timestamp WHERE id = :roomId")
-    suspend fun updateRoomLastActivity(roomId: String, messageId: String, timestamp: Long)
+    @Query(
+        """
+        UPDATE chat_rooms
+        SET lastMessageId = :messageId,
+        lastActivityAt = :timestamp
+        WHERE id = :roomId
+        """
+    )
+    suspend fun updateRoomLastActivity(
+        roomId: String,
+        messageId: String?,
+        timestamp: Long?
+    )
 
     @Delete
     suspend fun deleteCrossRefs(crossRefs: List<ChatRoomParticipantCrossRef>)
@@ -123,22 +144,34 @@ interface ChatDao {
         roomId: String,
         remoteMessages: List<ChatMessageEntity>
     ) {
+        require(remoteMessages.all { it.roomId == roomId }) {
+            "All remote messages must belong to roomId=$roomId"
+        }
+
         if (remoteMessages.isEmpty()) {
             clearSentMessagesForRoom(roomId)
-            return
+        } else {
+            val newestLocalTimestamp = getNewestSentMessageTimestamp(roomId)
+            val oldestRemoteTimestamp = remoteMessages.minOf { it.timestamp }
+
+            val hasMessageGap =
+                newestLocalTimestamp != null &&
+                        oldestRemoteTimestamp > newestLocalTimestamp
+
+            if (hasMessageGap) {
+                clearSentMessagesForRoom(roomId)
+            }
+
+            upsertMessages(remoteMessages)
         }
 
-        val newestLocalTimestamp = getNewestSentMessageTimestamp(roomId)
-        val oldestRemoteTimestamp = remoteMessages.minOf { it.timestamp }
+        val newestMessage = getNewestMessageForRoom(roomId)
 
-        val hasMessageGap =
-            newestLocalTimestamp != null && oldestRemoteTimestamp > newestLocalTimestamp
-
-        if (hasMessageGap) {
-            clearSentMessagesForRoom(roomId)
-        }
-
-        upsertMessages(remoteMessages)
+        updateRoomLastActivity(
+            roomId = roomId,
+            messageId = newestMessage?.id,
+            timestamp = newestMessage?.timestamp
+        )
     }
 
     @Transaction
