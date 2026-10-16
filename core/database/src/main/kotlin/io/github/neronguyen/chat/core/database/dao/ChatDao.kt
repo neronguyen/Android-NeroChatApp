@@ -228,15 +228,21 @@ interface ChatDao {
         upsertRooms(rooms)
 
         val roomIds = rooms.map { it.id }
-        val existingCrossRefs = getCrossRefsForRooms(roomIds)
+        val existingCrossRefs = roomIds.chunked(500).flatMap { chunk ->
+            getCrossRefsForRooms(chunk)
+        }
         val newCrossRefSet = crossRefs.toSet()
 
         val staleCrossRefs = existingCrossRefs.filter { it !in newCrossRefSet }
         if (staleCrossRefs.isNotEmpty()) {
-            deleteCrossRefs(staleCrossRefs)
+            staleCrossRefs.chunked(500).forEach { chunk ->
+                deleteCrossRefs(chunk)
+            }
         }
 
-        upsertCrossRefs(crossRefs)
+        crossRefs.chunked(500).forEach { chunk ->
+            upsertCrossRefs(chunk)
+        }
     }
 
     @Transaction
