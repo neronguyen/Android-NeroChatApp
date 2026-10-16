@@ -123,7 +123,10 @@ interface ChatDao {
         roomId: String,
         remoteMessages: List<ChatMessageEntity>
     ) {
-        if (remoteMessages.isEmpty()) return
+        if (remoteMessages.isEmpty()) {
+            clearSentMessagesForRoom(roomId)
+            return
+        }
 
         val newestLocalTimestamp = getNewestSentMessageTimestamp(roomId)
         val oldestRemoteTimestamp = remoteMessages.minOf { it.timestamp }
