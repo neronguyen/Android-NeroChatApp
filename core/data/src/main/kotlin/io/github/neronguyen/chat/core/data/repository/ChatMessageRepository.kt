@@ -6,7 +6,7 @@ import io.github.neronguyen.chat.core.model.error.DataError
 import kotlinx.coroutines.flow.Flow
 
 interface ChatMessageRepository {
-    fun getMessages(roomId: String): Flow<List<ChatMessage>>
+    fun getMessages(roomId: String, limit: Int): Flow<List<ChatMessage>>
     suspend fun syncRecentMessages(roomId: String): Either<DataError.Network, Boolean>
     suspend fun loadOlderMessages(roomId: String): Either<DataError.Network, Boolean>
     suspend fun sendMessage(roomId: String, message: String): Either<DataError, Unit>

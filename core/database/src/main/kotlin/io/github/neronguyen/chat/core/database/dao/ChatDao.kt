@@ -26,8 +26,18 @@ interface ChatDao {
     @Query("SELECT * FROM chat_rooms WHERE id = :roomId")
     fun getChatWithDetails(roomId: String): Flow<ChatRoomWithDetails?>
 
-    @Query("SELECT * FROM chat_messages WHERE roomId = :roomId ORDER BY timestamp DESC LIMIT :limit")
-    fun getRecentMessages(roomId: String, limit: Int = 20): Flow<List<ChatMessageEntity>>
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE roomId = :roomId
+        ORDER BY timestamp DESC, id DESC
+        LIMIT :limit
+        """
+    )
+    fun getRecentMessages(
+        roomId: String,
+        limit: Int
+    ): Flow<List<ChatMessageEntity>>
 
     @Query("SELECT * FROM chat_messages WHERE id = :id LIMIT 1")
     suspend fun getMessageById(id: String): ChatMessageEntity?

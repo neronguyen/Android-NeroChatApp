@@ -31,6 +31,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
@@ -143,10 +144,12 @@ class ChatMessageRepositoryImplTest {
         ) {
         }
 
+        override suspend fun getNewestMessageForRoom(roomId: String): ChatMessageEntity? = null
+
         override suspend fun updateRoomLastActivity(
             roomId: String,
-            messageId: String,
-            timestamp: Long
+            messageId: String?,
+            timestamp: Long?
         ) {
             lastUpdatedRoomId = roomId
             lastUpdatedRoomMessageId = messageId
@@ -235,6 +238,26 @@ class ChatMessageRepositoryImplTest {
         override suspend fun saveAuthData(user: User, accessToken: String, refreshToken: String) {}
         override suspend fun saveTokens(accessToken: String, refreshToken: String) {}
         override suspend fun clearAuthData() {}
+    }
+
+    @Test
+    fun `getMessages validates limit greater than 0`() {
+        val fakeDao = FakeChatDao()
+        val fakeRealtime = FakeChatRealtimeDataSource()
+        val fakeNetwork = FakeChatNetworkDataSource()
+        val fakeToken = FakeTokenDataSource()
+
+        val repository = ChatMessageRepositoryImpl(
+            chatDao = fakeDao,
+            realtimeDataSource = fakeRealtime,
+            networkDataSource = fakeNetwork,
+            tokenDataSource = fakeToken,
+            defaultDispatcher = testDispatcher
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            repository.getMessages("room1", limit = 0)
+        }
     }
 
     @Test

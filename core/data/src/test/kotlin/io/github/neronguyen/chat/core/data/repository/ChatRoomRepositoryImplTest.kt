@@ -105,10 +105,12 @@ class ChatRoomRepositoryImplTest {
         ) {
         }
 
+        override suspend fun getNewestMessageForRoom(roomId: String): ChatMessageEntity? = null
+
         override suspend fun updateRoomLastActivity(
             roomId: String,
-            messageId: String,
-            timestamp: Long
+            messageId: String?,
+            timestamp: Long?
         ) {
             lastUpdatedRoomId = roomId
             lastUpdatedRoomMessageId = messageId

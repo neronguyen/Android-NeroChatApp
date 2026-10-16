@@ -35,8 +35,10 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
     @Dispatcher(ChatDispatchers.Default) private val defaultDispatcher: CoroutineDispatcher
 ) : ChatMessageRepository {
 
-    override fun getMessages(roomId: String): Flow<List<ChatMessage>> {
-        return chatDao.getRecentMessages(roomId).map { entities ->
+    override fun getMessages(roomId: String, limit: Int): Flow<List<ChatMessage>> {
+        require(limit > 0) { "limit must be greater than 0" }
+
+        return chatDao.getRecentMessages(roomId, limit).map { entities ->
             entities.map { it.toDomain() }
         }.flowOn(defaultDispatcher)
     }
