@@ -10,6 +10,7 @@ import io.github.neronguyen.chat.core.datastore.TokenDataSource
 import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -67,13 +68,19 @@ class RealtimeConnectionManager @Inject constructor(
             }
                 .distinctUntilChanged()
                 .collectLatest { (foreground, isAuthenticated) ->
-                    when {
-                        !isAuthenticated -> realtimeDataSource.disconnect()
-                        foreground -> superviseConnection()
-                        else -> {
-                            delay(DISCONNECT_DELAY_MS.milliseconds)
-                            realtimeDataSource.disconnect()
+                    try {
+                        when {
+                            !isAuthenticated -> realtimeDataSource.disconnect()
+                            foreground -> superviseConnection()
+                            else -> {
+                                delay(DISCONNECT_DELAY_MS.milliseconds)
+                                realtimeDataSource.disconnect()
+                            }
                         }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Throwable) {
+                        // Prevent non-cancellation exceptions from terminating supervision loop
                     }
                 }
         }
