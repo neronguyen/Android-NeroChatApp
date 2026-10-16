@@ -88,6 +88,13 @@ class ChatRealtimeSyncManagerTest {
         override suspend fun getMessageById(id: String): ChatMessageEntity? = null
 
         override suspend fun getOldestSentMessageTimestamp(roomId: String): Long? = null
+        override suspend fun getNewestSentMessageTimestamp(roomId: String): Long? = null
+        override suspend fun clearSentMessagesForRoom(roomId: String) {}
+        override suspend fun syncRecentMessagesTransaction(
+            roomId: String,
+            remoteMessages: List<ChatMessageEntity>
+        ) {
+        }
 
         override suspend fun getCrossRefsForRooms(roomIds: List<String>): List<ChatRoomParticipantCrossRef> =
             emptyList()

@@ -44,6 +44,8 @@ class ChatMessageRepositoryImplTest {
         val insertedMessages = mutableListOf<ChatMessageEntity>()
         val updatedStatuses = mutableMapOf<String, MessageDeliveryStatus>()
         var oldestSentTimestampToReturn: Long? = null
+        var newestSentTimestampToReturn: Long? = null
+        var clearSentMessagesCalledCount = 0
         var lastUpdatedRoomId: String? = null
         var lastUpdatedRoomMessageId: String? = null
         var lastUpdatedRoomTimestamp: Long? = null
@@ -56,6 +58,27 @@ class ChatMessageRepositoryImplTest {
         override suspend fun getMessageById(id: String): ChatMessageEntity? = null
         override suspend fun getOldestSentMessageTimestamp(roomId: String): Long? =
             oldestSentTimestampToReturn
+
+        override suspend fun getNewestSentMessageTimestamp(roomId: String): Long? =
+            newestSentTimestampToReturn
+
+        override suspend fun clearSentMessagesForRoom(roomId: String) {
+            clearSentMessagesCalledCount++
+            insertedMessages.removeAll { it.roomId == roomId && it.deliveryStatus == MessageDeliveryStatus.SENT }
+        }
+
+        override suspend fun syncRecentMessagesTransaction(
+            roomId: String,
+            remoteMessages: List<ChatMessageEntity>
+        ) {
+            if (remoteMessages.isEmpty()) return
+            val newestLocalTimestamp = getNewestSentMessageTimestamp(roomId)
+            val oldestRemoteTimestamp = remoteMessages.minOf { it.timestamp }
+            if (newestLocalTimestamp != null && oldestRemoteTimestamp > newestLocalTimestamp) {
+                clearSentMessagesForRoom(roomId)
+            }
+            upsertMessages(remoteMessages)
+        }
 
         override suspend fun getCrossRefsForRooms(roomIds: List<String>): List<ChatRoomParticipantCrossRef> =
             emptyList()
@@ -277,6 +300,102 @@ class ChatMessageRepositoryImplTest {
             fakeNetwork.lastRequestedBefore
         )
         assertEquals(1, fakeDao.insertedMessages.size)
+    }
+
+    @Test
+    fun `syncRecentMessages clears sent messages when message gap is detected`() = runTest {
+        val newestLocalTimestamp = 1000L
+        val oldestRemoteTimestamp = 5000L // Remote is newer than newest local -> Gap!
+
+        val fakeDao = FakeChatDao().apply {
+            newestSentTimestampToReturn = newestLocalTimestamp
+            insertedMessages.add(
+                ChatMessageEntity(
+                    id = "stale-1",
+                    roomId = "room1",
+                    senderId = "u1",
+                    content = "stale",
+                    timestamp = 500L,
+                    deliveryStatus = MessageDeliveryStatus.SENT
+                )
+            )
+            insertedMessages.add(
+                ChatMessageEntity(
+                    id = "sending-1",
+                    roomId = "room1",
+                    senderId = "me",
+                    content = "sending",
+                    timestamp = 6000L,
+                    deliveryStatus = MessageDeliveryStatus.SENDING
+                )
+            )
+        }
+
+        val remoteDto = ChatMessageDto(
+            id = "remote-1",
+            roomId = "room1",
+            senderId = "u2",
+            content = "new remote msg",
+            createdAt = Instant.fromEpochMilliseconds(oldestRemoteTimestamp)
+        )
+        val fakeNetwork = FakeChatNetworkDataSource().apply {
+            messagesToReturn = ChatMessageSliceDto(messages = listOf(remoteDto), hasMore = false)
+        }
+        val fakeRealtime = FakeChatRealtimeDataSource()
+        val fakeToken = FakeTokenDataSource()
+
+        val repository = ChatMessageRepositoryImpl(
+            chatDao = fakeDao,
+            realtimeDataSource = fakeRealtime,
+            networkDataSource = fakeNetwork,
+            tokenDataSource = fakeToken,
+            defaultDispatcher = testDispatcher
+        )
+
+        val result = repository.syncRecentMessages("room1")
+
+        assertTrue(result.isRight())
+        assertEquals(1, fakeDao.clearSentMessagesCalledCount)
+        // Verify stale SENT message was cleared, but SENDING message and new remote message remain
+        assertEquals(2, fakeDao.insertedMessages.size)
+        assertTrue(fakeDao.insertedMessages.any { it.id == "sending-1" })
+        assertTrue(fakeDao.insertedMessages.any { it.id == "remote-1" })
+    }
+
+    @Test
+    fun `syncRecentMessages does not clear sent messages when no gap exists`() = runTest {
+        val newestLocalTimestamp = 5000L
+        val oldestRemoteTimestamp = 3000L // Overlapping data -> No gap
+
+        val fakeDao = FakeChatDao().apply {
+            newestSentTimestampToReturn = newestLocalTimestamp
+        }
+
+        val remoteDto = ChatMessageDto(
+            id = "remote-1",
+            roomId = "room1",
+            senderId = "u2",
+            content = "remote msg",
+            createdAt = Instant.fromEpochMilliseconds(oldestRemoteTimestamp)
+        )
+        val fakeNetwork = FakeChatNetworkDataSource().apply {
+            messagesToReturn = ChatMessageSliceDto(messages = listOf(remoteDto), hasMore = false)
+        }
+        val fakeRealtime = FakeChatRealtimeDataSource()
+        val fakeToken = FakeTokenDataSource()
+
+        val repository = ChatMessageRepositoryImpl(
+            chatDao = fakeDao,
+            realtimeDataSource = fakeRealtime,
+            networkDataSource = fakeNetwork,
+            tokenDataSource = fakeToken,
+            defaultDispatcher = testDispatcher
+        )
+
+        val result = repository.syncRecentMessages("room1")
+
+        assertTrue(result.isRight())
+        assertEquals(0, fakeDao.clearSentMessagesCalledCount)
     }
 
     @Test

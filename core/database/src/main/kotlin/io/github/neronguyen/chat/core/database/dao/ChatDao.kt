@@ -40,6 +40,14 @@ interface ChatDao {
     )
     suspend fun getOldestSentMessageTimestamp(roomId: String): Long?
 
+    @Query(
+        """
+        SELECT MAX(timestamp) FROM chat_messages 
+        WHERE roomId = :roomId AND deliveryStatus = 'SENT'
+    """
+    )
+    suspend fun getNewestSentMessageTimestamp(roomId: String): Long?
+
     @Query("SELECT * FROM chat_room_participants WHERE roomId IN (:roomIds)")
     suspend fun getCrossRefsForRooms(roomIds: List<String>): List<ChatRoomParticipantCrossRef>
 
@@ -86,6 +94,9 @@ interface ChatDao {
     @Query("DELETE FROM chat_messages WHERE id = :messageId")
     suspend fun deleteMessage(messageId: String)
 
+    @Query("DELETE FROM chat_messages WHERE roomId = :roomId AND deliveryStatus = 'SENT'")
+    suspend fun clearSentMessagesForRoom(roomId: String)
+
     @Query("DELETE FROM chat_room_participants WHERE roomId = :roomId AND userId = :userId")
     suspend fun deleteParticipantCrossRef(roomId: String, userId: String)
 
@@ -105,6 +116,26 @@ interface ChatDao {
             messageId = message.id,
             timestamp = message.timestamp
         )
+    }
+
+    @Transaction
+    suspend fun syncRecentMessagesTransaction(
+        roomId: String,
+        remoteMessages: List<ChatMessageEntity>
+    ) {
+        if (remoteMessages.isEmpty()) return
+
+        val newestLocalTimestamp = getNewestSentMessageTimestamp(roomId)
+        val oldestRemoteTimestamp = remoteMessages.minOf { it.timestamp }
+
+        val hasMessageGap =
+            newestLocalTimestamp != null && oldestRemoteTimestamp > newestLocalTimestamp
+
+        if (hasMessageGap) {
+            clearSentMessagesForRoom(roomId)
+        }
+
+        upsertMessages(remoteMessages)
     }
 
     @Transaction

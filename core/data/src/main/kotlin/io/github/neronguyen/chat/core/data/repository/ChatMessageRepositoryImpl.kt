@@ -43,7 +43,8 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
 
     override suspend fun syncRecentMessages(roomId: String): Either<DataError.Network, Boolean> {
         return networkDataSource.getMessagesForChatRoom(roomId, before = null).map { slice ->
-            chatDao.upsertMessages(slice.messages.map { it.toEntity(MessageDeliveryStatus.SENT) })
+            val remoteEntities = slice.messages.map { it.toEntity(MessageDeliveryStatus.SENT) }
+            chatDao.syncRecentMessagesTransaction(roomId, remoteEntities)
             slice.hasMore
         }
     }
