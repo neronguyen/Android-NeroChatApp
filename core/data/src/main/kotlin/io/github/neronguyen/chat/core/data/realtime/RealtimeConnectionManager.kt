@@ -6,18 +6,22 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import io.github.neronguyen.chat.core.common.network.AppScope
 import io.github.neronguyen.chat.core.common.network.ChatDispatchers
 import io.github.neronguyen.chat.core.common.network.Dispatcher
+import io.github.neronguyen.chat.core.data.mapper.toDomain
 import io.github.neronguyen.chat.core.datastore.TokenDataSource
 import io.github.neronguyen.chat.core.model.AuthState
+import io.github.neronguyen.chat.core.model.RealtimeConnectionState
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,6 +38,9 @@ class RealtimeConnectionManager @Inject constructor(
     @AppScope private val appScope: CoroutineScope,
     @Dispatcher(ChatDispatchers.IO) private val ioDispatcher: CoroutineDispatcher
 ) : DefaultLifecycleObserver {
+
+    val connectionState: Flow<RealtimeConnectionState> = realtimeDataSource.connectionState
+        .map { it.toDomain() }
 
     private val isForeground = MutableStateFlow(false)
     private val initialized = AtomicBoolean(false)
