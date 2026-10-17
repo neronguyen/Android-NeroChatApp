@@ -15,11 +15,15 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import io.github.neronguyen.chat.feature.chat.presentation.list.ChatListRoute
 import io.github.neronguyen.chat.feature.chat.presentation.list.ChatListViewModel
+import io.github.neronguyen.chat.feature.chat.presentation.newchat.NewChatRoute
+import io.github.neronguyen.chat.feature.chat.presentation.newchat.NewChatViewModel
 
 fun EntryProviderScope<NavKey>.chatSection(
     onOpenConversation: (roomId: String) -> Unit,
     onNewChatClick: () -> Unit,
     onAccountClick: () -> Unit,
+    onBackClick: () -> Unit = {},
+    onChatCreated: (roomId: String) -> Unit = onOpenConversation,
 ) {
     entry<ChatRoute.ChatList> {
         val viewModel: ChatListViewModel = hiltViewModel()
@@ -30,6 +34,15 @@ fun EntryProviderScope<NavKey>.chatSection(
             onAccountClick = onAccountClick,
         )
     }
+
+    entry<ChatRoute.NewChat> {
+        val viewModel: NewChatViewModel = hiltViewModel()
+        NewChatRoute(
+            viewModel = viewModel,
+            onBackClick = onBackClick,
+            onChatCreated = onChatCreated,
+        )
+    }
 }
 
 @Composable
@@ -37,17 +50,25 @@ fun ChatNavGraph(
     modifier: Modifier = Modifier,
     startRoute: ChatRoute = ChatRoute.ChatList,
     onOpenConversation: (roomId: String) -> Unit = {},
-    onNewChatClick: () -> Unit = {},
     onAccountClick: () -> Unit = {},
 ) {
     val backStack = rememberNavBackStack(startRoute)
 
-    val entryProvider = remember(onOpenConversation, onNewChatClick, onAccountClick) {
+    val entryProvider = remember(backStack, onOpenConversation, onAccountClick) {
         entryProvider {
             chatSection(
                 onOpenConversation = onOpenConversation,
-                onNewChatClick = onNewChatClick,
+                onNewChatClick = {
+                    if (backStack.lastOrNull() != ChatRoute.NewChat) {
+                        backStack.add(ChatRoute.NewChat)
+                    }
+                },
                 onAccountClick = onAccountClick,
+                onBackClick = { backStack.pop() },
+                onChatCreated = { roomId ->
+                    backStack.pop()
+                    onOpenConversation(roomId)
+                },
             )
         }
     }

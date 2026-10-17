@@ -268,7 +268,21 @@ private class FakeChatRoomRepository : ChatRoomRepository {
     ): Either<DataError.Network, ChatRoom> {
         throw UnsupportedOperationException()
     }
+
+    override fun getChatRoom(roomId: String): Flow<ChatRoom?> = kotlinx.coroutines.flow.emptyFlow()
+
+    override suspend fun syncChatRoom(roomId: String): Either<DataError.Network, Unit> =
+        Either.Right(Unit)
+
+    override suspend fun addParticipantsToGroup(
+        roomId: String,
+        userIds: List<String>
+    ): Either<DataError.Network, ChatRoom> = throw UnsupportedOperationException()
+
+    override suspend fun leaveChatRoom(roomId: String): Either<DataError.Network, Unit> =
+        Either.Right(Unit)
 }
+
 
 private class FakeAuthRepository(
     initialState: AuthState,
