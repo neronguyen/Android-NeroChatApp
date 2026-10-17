@@ -76,4 +76,22 @@
     <string name="conversation_add_participant_title">Add participant to group</string>
     <string name="conversation_add_participant_confirm">Add</string>
     <string name="conversation_cancel">Cancel</string>
+
+    <!-- Account Screen -->
+    <string name="account_settings_title">Account Settings</string>
+    <string name="account_credential_status_header">Account Credential Status</string>
+    <string name="account_email_verification">Email verification</string>
+    <string name="account_email_verified">Verified</string>
+    <string name="account_email_unverified">Unverified</string>
+    <string name="account_realtime_operational">Realtime stream operational</string>
+    <string name="account_realtime_synced">Synced</string>
+    <string name="account_realtime_connecting">Connecting…</string>
+    <string name="account_realtime_offline">Offline — waiting for connection</string>
+    <string name="account_session_authenticated_title">Session authenticated</string>
+    <string name="account_session_authenticated_body">Refresh token active. In-memory symmetric session state maintained across background resume.</string>
+    <string name="account_sign_out">Sign out</string>
+    <string name="account_signing_out">Signing out…</string>
+    <string name="account_sign_out_footer">Signing out clears local authentication and disconnects realtime sync.</string>
+    <string name="account_sign_out_confirm_title">Sign out</string>
+    <string name="account_sign_out_confirm_message">Are you sure you want to sign out? This will clear local authentication and cached messages.</string>
 </resources>

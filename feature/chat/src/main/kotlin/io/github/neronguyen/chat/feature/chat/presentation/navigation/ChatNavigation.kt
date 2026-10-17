@@ -13,6 +13,8 @@ import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import io.github.neronguyen.chat.feature.chat.presentation.account.AccountRoute
+import io.github.neronguyen.chat.feature.chat.presentation.account.AccountViewModel
 import io.github.neronguyen.chat.feature.chat.presentation.conversation.ConversationRoute
 import io.github.neronguyen.chat.feature.chat.presentation.conversation.ConversationViewModel
 import io.github.neronguyen.chat.feature.chat.presentation.list.ChatListRoute
@@ -56,6 +58,14 @@ fun EntryProviderScope<NavKey>.chatSection(
             onBackClick = onBackClick,
         )
     }
+
+    entry<ChatRoute.Account> {
+        val viewModel: AccountViewModel = hiltViewModel()
+        AccountRoute(
+            viewModel = viewModel,
+            onBackClick = onBackClick,
+        )
+    }
 }
 
 @Composable
@@ -81,7 +91,12 @@ fun ChatNavGraph(
                         backStack.add(ChatRoute.NewChat)
                     }
                 },
-                onAccountClick = onAccountClick,
+                onAccountClick = {
+                    if (backStack.lastOrNull() != ChatRoute.Account) {
+                        backStack.add(ChatRoute.Account)
+                    }
+                    onAccountClick()
+                },
                 onBackClick = { backStack.pop() },
                 onChatCreated = { roomId ->
                     backStack.pop()
