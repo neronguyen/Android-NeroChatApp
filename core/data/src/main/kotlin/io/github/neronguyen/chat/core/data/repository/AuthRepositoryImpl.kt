@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.flatMap
 import io.github.neronguyen.chat.core.data.mapper.toDomain
 import io.github.neronguyen.chat.core.data.mapper.toDomainUser
+import io.github.neronguyen.chat.core.database.dao.ChatDao
 import io.github.neronguyen.chat.core.datastore.TokenDataSource
 import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.User
@@ -23,6 +24,7 @@ import javax.inject.Singleton
 internal class AuthRepositoryImpl @Inject constructor(
     private val networkDataSource: AuthNetworkDataSource,
     private val tokenDataSource: TokenDataSource,
+    private val chatDao: ChatDao,
 ) : AuthRepository, TokenRefresher {
 
     private val refreshMutex = Mutex()
@@ -69,6 +71,7 @@ internal class AuthRepositoryImpl @Inject constructor(
             }
 
             tokenDataSource.clearAuthData()
+            chatDao.clearAllChatData()
             Either.Right(Unit)
         }
     }
@@ -83,6 +86,7 @@ internal class AuthRepositoryImpl @Inject constructor(
             val currentRefreshToken = tokenDataSource.getRefreshToken()
             if (currentRefreshToken.isNullOrBlank()) {
                 tokenDataSource.clearAuthData()
+                chatDao.clearAllChatData()
                 return Either.Left(DataError.Local.Unauthorized)
             }
 
@@ -97,6 +101,7 @@ internal class AuthRepositoryImpl @Inject constructor(
 
                         else -> {
                             tokenDataSource.clearAuthData()
+                            chatDao.clearAllChatData()
                         }
                     }
                     Either.Left(error)

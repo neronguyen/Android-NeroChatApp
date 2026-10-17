@@ -100,6 +100,13 @@ class ChatRealtimeSyncManagerTest {
             emptyList()
 
         override suspend fun deleteCrossRefs(crossRefs: List<ChatRoomParticipantCrossRef>) {}
+        override suspend fun deleteRoom(roomId: String) {}
+        override suspend fun deleteCrossRefsForRoom(roomId: String) {}
+        override suspend fun deleteMessagesForRoom(roomId: String) {}
+        override suspend fun clearRooms() {}
+        override suspend fun clearMessages() {}
+        override suspend fun clearParticipants() {}
+        override suspend fun clearCrossRefs() {}
 
         override suspend fun upsertRoom(room: ChatRoomEntity) {}
         override suspend fun upsertRooms(rooms: List<ChatRoomEntity>) {}

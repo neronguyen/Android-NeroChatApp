@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -181,4 +182,43 @@ class RealtimeConnectionManagerTest {
         assertEquals(0, fakeDataSource.connectCalledCount)
         assertTrue(fakeDataSource.disconnectCalledCount >= 1)
     }
+
+    @Test
+    fun `connectionState maps socket states to domain RealtimeConnectionState`() = runTest {
+        val externalScope = TestScope(testDispatcher)
+        val fakeDataSource = FakeChatRealtimeDataSource()
+        val fakeToken = FakeTokenDataSource()
+
+        val manager = RealtimeConnectionManager(
+            realtimeDataSource = fakeDataSource,
+            tokenDataSource = fakeToken,
+            appScope = externalScope,
+            ioDispatcher = testDispatcher
+        )
+
+        assertEquals(
+            io.github.neronguyen.chat.core.model.RealtimeConnectionState.DISCONNECTED,
+            manager.connectionState.first()
+        )
+
+        fakeDataSource.connectionStateFlow.value = SocketConnectionState.Connecting
+        assertEquals(
+            io.github.neronguyen.chat.core.model.RealtimeConnectionState.CONNECTING,
+            manager.connectionState.first()
+        )
+
+        fakeDataSource.connectionStateFlow.value = SocketConnectionState.Connected
+        assertEquals(
+            io.github.neronguyen.chat.core.model.RealtimeConnectionState.CONNECTED,
+            manager.connectionState.first()
+        )
+
+        fakeDataSource.connectionStateFlow.value = SocketConnectionState.Failed()
+        assertEquals(
+            io.github.neronguyen.chat.core.model.RealtimeConnectionState.FAILED,
+            manager.connectionState.first()
+        )
+    }
 }
+
+

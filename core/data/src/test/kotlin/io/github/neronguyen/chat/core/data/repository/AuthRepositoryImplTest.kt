@@ -1,8 +1,15 @@
 package io.github.neronguyen.chat.core.data.repository
 
 import arrow.core.Either
+import io.github.neronguyen.chat.core.database.dao.ChatDao
+import io.github.neronguyen.chat.core.database.entity.ChatMessageEntity
+import io.github.neronguyen.chat.core.database.entity.ChatParticipantEntity
+import io.github.neronguyen.chat.core.database.entity.ChatRoomEntity
+import io.github.neronguyen.chat.core.database.entity.ChatRoomParticipantCrossRef
+import io.github.neronguyen.chat.core.database.model.ChatRoomWithDetails
 import io.github.neronguyen.chat.core.datastore.TokenDataSource
 import io.github.neronguyen.chat.core.model.AuthState
+import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.AuthNetworkDataSource
@@ -24,6 +31,72 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
 class AuthRepositoryImplTest {
+
+    private class FakeChatDao : ChatDao {
+        var clearAllChatDataCalled = false
+
+        override fun getChatsWithDetails(): Flow<List<ChatRoomWithDetails>> = emptyFlow()
+        override fun getChatWithDetails(roomId: String): Flow<ChatRoomWithDetails?> = emptyFlow()
+        override fun getRecentMessages(roomId: String, limit: Int): Flow<List<ChatMessageEntity>> =
+            emptyFlow()
+
+        override suspend fun getMessageById(id: String): ChatMessageEntity? = null
+        override suspend fun getOldestSentMessageTimestamp(roomId: String): Long? = null
+        override suspend fun getNewestSentMessageTimestamp(roomId: String): Long? = null
+        override suspend fun getNewestMessageForRoom(roomId: String): ChatMessageEntity? = null
+        override suspend fun getCrossRefsForRooms(roomIds: List<String>): List<ChatRoomParticipantCrossRef> =
+            emptyList()
+
+        override suspend fun upsertRoom(room: ChatRoomEntity) {}
+        override suspend fun upsertRooms(rooms: List<ChatRoomEntity>) {}
+        override suspend fun upsertParticipant(participant: ChatParticipantEntity) {}
+        override suspend fun upsertParticipants(participants: List<ChatParticipantEntity>) {}
+        override suspend fun upsertCrossRefs(crossRefs: List<ChatRoomParticipantCrossRef>) {}
+        override suspend fun upsertMessage(message: ChatMessageEntity) {}
+        override suspend fun upsertMessages(messages: List<ChatMessageEntity>) {}
+        override suspend fun updateDeliveryStatus(
+            messageId: String,
+            status: MessageDeliveryStatus
+        ) {
+        }
+
+        override suspend fun markSendingMessagesAsFailed(
+            sendingStatus: MessageDeliveryStatus,
+            failedStatus: MessageDeliveryStatus
+        ) {
+        }
+
+        override suspend fun deleteMessage(messageId: String) {}
+        override suspend fun clearSentMessagesForRoom(roomId: String) {}
+        override suspend fun deleteParticipantCrossRef(roomId: String, userId: String) {}
+        override suspend fun updateRoomLastActivity(
+            roomId: String,
+            messageId: String?,
+            timestamp: Long?
+        ) {
+        }
+
+        override suspend fun deleteCrossRefs(crossRefs: List<ChatRoomParticipantCrossRef>) {}
+        override suspend fun deleteRoom(roomId: String) {}
+        override suspend fun deleteCrossRefsForRoom(roomId: String) {}
+        override suspend fun deleteMessagesForRoom(roomId: String) {}
+        override suspend fun clearRooms() {}
+        override suspend fun clearMessages() {}
+        override suspend fun clearParticipants() {}
+        override suspend fun clearCrossRefs() {}
+
+        override suspend fun clearAllChatData() {
+            clearAllChatDataCalled = true
+        }
+    }
+
+    private fun createRepository(
+        networkDataSource: AuthNetworkDataSource,
+        tokenDataSource: TokenDataSource,
+        chatDao: ChatDao = FakeChatDao()
+    ): AuthRepositoryImpl = AuthRepositoryImpl(networkDataSource, tokenDataSource, chatDao)
+
+
 
     private class FakeTokenDataSource : TokenDataSource {
         var savedRefreshToken: String? = null
@@ -98,7 +171,7 @@ class AuthRepositoryImplTest {
     fun refreshToken_noRefreshTokenStored_returnsError() = runTest {
         val tokenDataSource = FakeTokenDataSource()
         val networkDataSource = FakeAuthNetworkDataSource()
-        val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
+        val repository = createRepository(networkDataSource, tokenDataSource)
 
         val result = repository.refresh("stale_access_token")
 
@@ -128,7 +201,7 @@ class AuthRepositoryImplTest {
                 )
             }
         }
-        val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
+        val repository = createRepository(networkDataSource, tokenDataSource)
 
         val result = repository.refresh("old_access_token")
 
@@ -147,7 +220,7 @@ class AuthRepositoryImplTest {
                 savedRefreshToken = "current_refresh_token"
             }
             val networkDataSource = FakeAuthNetworkDataSource()
-            val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
+            val repository = createRepository(networkDataSource, tokenDataSource)
 
             val result = repository.refresh("stale_access_token")
 
@@ -182,7 +255,7 @@ class AuthRepositoryImplTest {
                 }
             }
 
-            val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
+            val repository = createRepository(networkDataSource, tokenDataSource)
 
             val call1 = async { repository.refresh("stale_token") }
             val call2 = async { repository.refresh("stale_token") }
@@ -207,7 +280,7 @@ class AuthRepositoryImplTest {
         val networkDataSource = FakeAuthNetworkDataSource().apply {
             refreshResult = { Either.Left(DataError.Network.RequestTimeout) }
         }
-        val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
+        val repository = createRepository(networkDataSource, tokenDataSource)
 
         val result = repository.refresh("stale_token")
 
@@ -222,7 +295,7 @@ class AuthRepositoryImplTest {
             savedRefreshToken = "refresh_token"
         }
         val networkDataSource = FakeAuthNetworkDataSource()
-        val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
+        val repository = createRepository(networkDataSource, tokenDataSource)
 
         val result = repository.logout()
 
@@ -238,7 +311,7 @@ class AuthRepositoryImplTest {
     fun logout_withoutTokenStored_clearsAuthDataWithoutNetworkLogout() = runTest {
         val tokenDataSource = FakeTokenDataSource()
         val networkDataSource = FakeAuthNetworkDataSource()
-        val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
+        val repository = createRepository(networkDataSource, tokenDataSource)
 
         val result = repository.logout()
 
@@ -256,7 +329,7 @@ class AuthRepositoryImplTest {
         val networkDataSource = FakeAuthNetworkDataSource().apply {
             logoutDelayMs = 50
         }
-        val repository = AuthRepositoryImpl(networkDataSource, tokenDataSource)
+        val repository = createRepository(networkDataSource, tokenDataSource)
 
         // Launch logout and refresh token concurrently
         val logoutCall = async { repository.logout() }
@@ -271,4 +344,18 @@ class AuthRepositoryImplTest {
         assertEquals(DataError.Local.Unauthorized, (refreshResult as Either.Left).value)
         assertTrue(tokenDataSource.clearCalled)
     }
+
+    @Test
+    fun logout_clearsChatDaoCache() = runTest {
+        val fakeDao = FakeChatDao()
+        val tokenDataSource = FakeTokenDataSource()
+        val networkDataSource = FakeAuthNetworkDataSource()
+        val repository = createRepository(networkDataSource, tokenDataSource, fakeDao)
+
+        val result = repository.logout()
+
+        assertTrue(result.isRight())
+        assertTrue(fakeDao.clearAllChatDataCalled)
+    }
 }
+

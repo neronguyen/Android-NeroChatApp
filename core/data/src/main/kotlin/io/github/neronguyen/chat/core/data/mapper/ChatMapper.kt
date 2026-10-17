@@ -8,9 +8,19 @@ import io.github.neronguyen.chat.core.model.ChatMessage
 import io.github.neronguyen.chat.core.model.ChatParticipant
 import io.github.neronguyen.chat.core.model.ChatRoom
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
+import io.github.neronguyen.chat.core.model.RealtimeConnectionState
+import io.github.neronguyen.chat.core.model.RealtimeConnectionState.CONNECTED
+import io.github.neronguyen.chat.core.model.RealtimeConnectionState.CONNECTING
+import io.github.neronguyen.chat.core.model.RealtimeConnectionState.DISCONNECTED
+import io.github.neronguyen.chat.core.model.RealtimeConnectionState.FAILED
 import io.github.neronguyen.chat.core.network.model.ChatMessageDto
 import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
 import io.github.neronguyen.chat.core.network.model.ChatRoomDto
+import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
+import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState.Connected
+import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState.Connecting
+import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState.Disconnected
+import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState.Failed
 import kotlin.time.Instant
 
 fun ChatParticipantDto.toDomain(): ChatParticipant {
@@ -124,3 +134,11 @@ fun ChatRoomWithDetails.toDomain(): ChatRoom {
         lastActivityAt = room.lastActivityAt?.let { Instant.fromEpochMilliseconds(it) }
     )
 }
+
+fun SocketConnectionState.toDomain(): RealtimeConnectionState = when (this) {
+    is Connecting -> CONNECTING
+    is Connected -> CONNECTED
+    is Disconnected -> DISCONNECTED
+    is Failed -> FAILED
+}
+

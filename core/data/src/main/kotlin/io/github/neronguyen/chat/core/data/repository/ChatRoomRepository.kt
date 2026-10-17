@@ -22,4 +22,16 @@ interface ChatRoomRepository {
         participantIds: List<String>,
         name: String? = null
     ): Either<DataError.Network, ChatRoom>
+
+    fun getChatRoom(roomId: String): Flow<ChatRoom?>
+
+    suspend fun syncChatRoom(roomId: String): Either<DataError.Network, Unit>
+
+    suspend fun addParticipantsToGroup(
+        roomId: String,
+        userIds: List<String>
+    ): Either<DataError.Network, ChatRoom>
+
+    suspend fun leaveChatRoom(roomId: String): Either<DataError.Network, Unit>
 }
+

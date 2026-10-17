@@ -10,4 +10,6 @@ interface ChatMessageRepository {
     suspend fun syncRecentMessages(roomId: String): Either<DataError.Network, Boolean>
     suspend fun loadOlderMessages(roomId: String): Either<DataError.Network, Boolean>
     suspend fun sendMessage(roomId: String, message: String): Either<DataError, Unit>
+    suspend fun retryMessage(messageId: String): Either<DataError, Unit>
+    suspend fun deleteMessage(messageId: String): Either<DataError.Network, Unit>
 }

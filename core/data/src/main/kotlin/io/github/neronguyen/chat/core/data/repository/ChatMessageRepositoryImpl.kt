@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Instant
@@ -99,6 +100,31 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
             )
         ).onLeft {
             chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.FAILED)
+        }
+    }
+
+    override suspend fun retryMessage(messageId: String): Either<DataError, Unit> {
+        val entity = chatDao.getMessageById(messageId)
+            ?: return Either.Left(DataError.Network.Unknown)
+
+        chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.SENDING)
+
+        return realtimeDataSource.sendMessage(
+            WsClientMessage.NewMessage(
+                roomId = entity.roomId,
+                content = entity.content,
+                messageId = messageId
+            )
+        ).onLeft {
+            chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.FAILED)
+        }
+    }
+
+    override suspend fun deleteMessage(messageId: String): Either<DataError.Network, Unit> {
+        return withContext(defaultDispatcher) {
+            networkDataSource.deleteMessage(messageId).map {
+                chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.DELETED)
+            }
         }
     }
 }

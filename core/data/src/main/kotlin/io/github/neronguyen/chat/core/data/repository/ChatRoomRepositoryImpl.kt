@@ -92,6 +92,39 @@ internal class ChatRoomRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getChatRoom(roomId: String): Flow<ChatRoom?> {
+        return chatDao.getChatWithDetails(roomId).map { it?.toDomain() }.flowOn(defaultDispatcher)
+    }
+
+    override suspend fun syncChatRoom(roomId: String): Either<DataError.Network, Unit> {
+        return withContext(defaultDispatcher) {
+            networkDataSource.getChatRoom(roomId).map { dto ->
+                saveChatRoomDto(dto)
+            }
+        }
+    }
+
+    override suspend fun addParticipantsToGroup(
+        roomId: String,
+        userIds: List<String>
+    ): Either<DataError.Network, ChatRoom> {
+        return withContext(defaultDispatcher) {
+            networkDataSource.addParticipantsToGroup(roomId, userIds).map { dto ->
+                saveChatRoomDto(dto)
+                dto.toDomain()
+            }
+        }
+    }
+
+    override suspend fun leaveChatRoom(roomId: String): Either<DataError.Network, Unit> {
+        return withContext(defaultDispatcher) {
+            networkDataSource.leaveChatRoom(roomId).map {
+                chatDao.removeRoomAndData(roomId)
+            }
+        }
+    }
+
+
     private suspend fun saveChatRoomDto(dto: ChatRoomDto) {
         val participants = (dto.participants + dto.creator)
             .distinctBy { it.userId }

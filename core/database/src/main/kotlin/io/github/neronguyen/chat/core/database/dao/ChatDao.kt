@@ -134,10 +134,47 @@ interface ChatDao {
         timestamp: Long?
     )
 
+    @Query("DELETE FROM chat_rooms WHERE id = :roomId")
+    suspend fun deleteRoom(roomId: String)
+
+    @Query("DELETE FROM chat_room_participants WHERE roomId = :roomId")
+    suspend fun deleteCrossRefsForRoom(roomId: String)
+
+    @Query("DELETE FROM chat_messages WHERE roomId = :roomId")
+    suspend fun deleteMessagesForRoom(roomId: String)
+
+    @Query("DELETE FROM chat_rooms")
+    suspend fun clearRooms()
+
+    @Query("DELETE FROM chat_messages")
+    suspend fun clearMessages()
+
+    @Query("DELETE FROM chat_participants")
+    suspend fun clearParticipants()
+
+    @Query("DELETE FROM chat_room_participants")
+    suspend fun clearCrossRefs()
+
     @Delete
     suspend fun deleteCrossRefs(crossRefs: List<ChatRoomParticipantCrossRef>)
 
     // --- Transactions ---
+
+    @Transaction
+    suspend fun clearAllChatData() {
+        clearCrossRefs()
+        clearMessages()
+        clearRooms()
+        clearParticipants()
+    }
+
+    @Transaction
+    suspend fun removeRoomAndData(roomId: String) {
+        deleteCrossRefsForRoom(roomId)
+        deleteMessagesForRoom(roomId)
+        deleteRoom(roomId)
+    }
+
 
     @Transaction
     suspend fun insertSendingMessage(message: ChatMessageEntity) {

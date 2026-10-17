@@ -15,7 +15,9 @@ import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
 import io.github.neronguyen.chat.core.network.model.ChatRoomDto
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -35,8 +37,12 @@ class ChatRoomRepositoryImplTest {
         var lastUpdatedRoomMessageId: String? = null
         var lastUpdatedRoomTimestamp: Long? = null
 
+        val chatWithDetailsFlow = MutableStateFlow<ChatRoomWithDetails?>(null)
+        var deleteRoomCalledWith: String? = null
+
         override fun getChatsWithDetails(): Flow<List<ChatRoomWithDetails>> = emptyFlow()
-        override fun getChatWithDetails(roomId: String): Flow<ChatRoomWithDetails?> = emptyFlow()
+        override fun getChatWithDetails(roomId: String): Flow<ChatRoomWithDetails?> =
+            chatWithDetailsFlow
         override fun getRecentMessages(roomId: String, limit: Int): Flow<List<ChatMessageEntity>> =
             emptyFlow()
         override suspend fun getMessageById(id: String): ChatMessageEntity? = null
@@ -52,6 +58,17 @@ class ChatRoomRepositoryImplTest {
             emptyList()
 
         override suspend fun deleteCrossRefs(crossRefs: List<ChatRoomParticipantCrossRef>) {}
+        override suspend fun deleteRoom(roomId: String) {
+            deleteRoomCalledWith = roomId
+        }
+
+        override suspend fun deleteCrossRefsForRoom(roomId: String) {}
+        override suspend fun deleteMessagesForRoom(roomId: String) {}
+        override suspend fun clearRooms() {}
+        override suspend fun clearMessages() {}
+        override suspend fun clearParticipants() {}
+        override suspend fun clearCrossRefs() {}
+
 
         override suspend fun upsertRoom(room: ChatRoomEntity) {}
         override suspend fun upsertRooms(rooms: List<ChatRoomEntity>) {}
@@ -250,4 +267,48 @@ class ChatRoomRepositoryImplTest {
         assertEquals(participantIds, fakeNetwork.lastGroupParticipantIds)
         assertEquals("Group Test", fakeNetwork.lastGroupName)
     }
+
+    @Test
+    fun `getChatRoom observes dao and maps to domain`() = runTest {
+        val fakeDao = FakeChatDao()
+        val fakeNetwork = FakeChatNetworkDataSource()
+        val repository = ChatRoomRepositoryImpl(fakeDao, fakeNetwork, testDispatcher)
+
+        val sampleEntity = ChatRoomEntity(
+            id = "room-1",
+            type = io.github.neronguyen.chat.core.model.ChatRoomType.DIRECT,
+            name = null,
+            creatorId = "creator-1",
+            lastMessageId = null,
+            lastActivityAt = null
+        )
+        val creatorEntity = ChatParticipantEntity(
+            userId = "creator-1",
+            email = "creator@example.com",
+            displayName = "Creator",
+            profilePictureUrl = null
+        )
+        fakeDao.chatWithDetailsFlow.value = ChatRoomWithDetails(
+            room = sampleEntity,
+            creator = creatorEntity,
+            participants = listOf(creatorEntity),
+            lastMessage = null
+        )
+
+        val room = repository.getChatRoom("room-1").firstOrNull()
+        assertEquals("room-1", room?.id)
+        assertEquals("Creator", room?.creator?.displayName)
+    }
+
+    @Test
+    fun `leaveChatRoom calls network and removes room and data from dao`() = runTest {
+        val fakeDao = FakeChatDao()
+        val fakeNetwork = FakeChatNetworkDataSource()
+        val repository = ChatRoomRepositoryImpl(fakeDao, fakeNetwork, testDispatcher)
+
+        val result = repository.leaveChatRoom("room-1")
+        assertTrue(result.isRight())
+        assertEquals("room-1", fakeDao.deleteRoomCalledWith)
+    }
 }
+
