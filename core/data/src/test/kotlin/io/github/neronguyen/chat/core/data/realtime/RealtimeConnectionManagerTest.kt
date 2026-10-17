@@ -100,7 +100,7 @@ class RealtimeConnectionManagerTest {
         val fakeDataSource = FakeChatRealtimeDataSource()
         val fakeToken = FakeTokenDataSource()
 
-        val manager = RealtimeConnectionManager(
+        val manager = RealtimeConnectionManagerImpl(
             realtimeDataSource = fakeDataSource,
             tokenDataSource = fakeToken,
             appScope = externalScope,
@@ -120,7 +120,7 @@ class RealtimeConnectionManagerTest {
         val fakeDataSource = FakeChatRealtimeDataSource()
         val fakeToken = FakeTokenDataSource()
 
-        val manager = RealtimeConnectionManager(
+        val manager = RealtimeConnectionManagerImpl(
             realtimeDataSource = fakeDataSource,
             tokenDataSource = fakeToken,
             appScope = externalScope,
@@ -147,7 +147,7 @@ class RealtimeConnectionManagerTest {
         val fakeDataSource = FakeChatRealtimeDataSource()
         val fakeToken = FakeTokenDataSource()
 
-        val manager = RealtimeConnectionManager(
+        val manager = RealtimeConnectionManagerImpl(
             realtimeDataSource = fakeDataSource,
             tokenDataSource = fakeToken,
             appScope = externalScope,
@@ -168,7 +168,7 @@ class RealtimeConnectionManagerTest {
         val fakeDataSource = FakeChatRealtimeDataSource()
         val fakeToken = FakeTokenDataSource(initialAuthState = AuthState.Unauthenticated)
 
-        val manager = RealtimeConnectionManager(
+        val manager = RealtimeConnectionManagerImpl(
             realtimeDataSource = fakeDataSource,
             tokenDataSource = fakeToken,
             appScope = externalScope,
@@ -189,7 +189,7 @@ class RealtimeConnectionManagerTest {
         val fakeDataSource = FakeChatRealtimeDataSource()
         val fakeToken = FakeTokenDataSource()
 
-        val manager = RealtimeConnectionManager(
+        val manager = RealtimeConnectionManagerImpl(
             realtimeDataSource = fakeDataSource,
             tokenDataSource = fakeToken,
             appScope = externalScope,

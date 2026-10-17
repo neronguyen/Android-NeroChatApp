@@ -4,6 +4,8 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import io.github.neronguyen.chat.core.data.realtime.RealtimeConnectionManager
+import io.github.neronguyen.chat.core.data.realtime.RealtimeConnectionManagerImpl
 import io.github.neronguyen.chat.core.data.repository.AuthRepository
 import io.github.neronguyen.chat.core.data.repository.AuthRepositoryImpl
 import io.github.neronguyen.chat.core.data.repository.ChatMessageRepository
@@ -40,4 +42,10 @@ internal abstract class DataModule {
     internal abstract fun bindChatMessageRepository(
         impl: ChatMessageRepositoryImpl
     ): ChatMessageRepository
+
+    @Binds
+    @Singleton
+    internal abstract fun bindRealtimeConnectionManager(
+        impl: RealtimeConnectionManagerImpl
+    ): RealtimeConnectionManager
 }
