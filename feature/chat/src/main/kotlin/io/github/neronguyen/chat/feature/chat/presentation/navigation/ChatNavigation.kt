@@ -13,6 +13,8 @@ import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import io.github.neronguyen.chat.feature.chat.presentation.conversation.ConversationRoute
+import io.github.neronguyen.chat.feature.chat.presentation.conversation.ConversationViewModel
 import io.github.neronguyen.chat.feature.chat.presentation.list.ChatListRoute
 import io.github.neronguyen.chat.feature.chat.presentation.list.ChatListViewModel
 import io.github.neronguyen.chat.feature.chat.presentation.newchat.NewChatRoute
@@ -43,6 +45,17 @@ fun EntryProviderScope<NavKey>.chatSection(
             onChatCreated = onChatCreated,
         )
     }
+
+    entry<ChatRoute.Conversation> { route ->
+        val viewModel =
+            hiltViewModel<ConversationViewModel, ConversationViewModel.Factory> { factory ->
+                factory.create(route.roomId)
+            }
+        ConversationRoute(
+            viewModel = viewModel,
+            onBackClick = onBackClick,
+        )
+    }
 }
 
 @Composable
@@ -57,7 +70,12 @@ fun ChatNavGraph(
     val entryProvider = remember(backStack, onOpenConversation, onAccountClick) {
         entryProvider {
             chatSection(
-                onOpenConversation = onOpenConversation,
+                onOpenConversation = { roomId ->
+                    if (backStack.lastOrNull() != ChatRoute.Conversation(roomId)) {
+                        backStack.add(ChatRoute.Conversation(roomId))
+                    }
+                    onOpenConversation(roomId)
+                },
                 onNewChatClick = {
                     if (backStack.lastOrNull() != ChatRoute.NewChat) {
                         backStack.add(ChatRoute.NewChat)
@@ -67,6 +85,9 @@ fun ChatNavGraph(
                 onBackClick = { backStack.pop() },
                 onChatCreated = { roomId ->
                     backStack.pop()
+                    if (backStack.lastOrNull() != ChatRoute.Conversation(roomId)) {
+                        backStack.add(ChatRoute.Conversation(roomId))
+                    }
                     onOpenConversation(roomId)
                 },
             )
