@@ -10,7 +10,11 @@ sealed interface NetworkError<out S : ServerError> {
     }
 
     /** Non-2xx response that does not match the contract (e.g. 502 HTML page, unknown code). */
-    data class Http(val status: Int, val rawCode: String?) : NetworkError<Nothing>
+    data class Http(
+        val status: Int,
+        val rawCode: String? = null,
+        val retryAfterSeconds: Long? = null,
+    ) : NetworkError<Nothing>
 
     /** Non-2xx response whose ApiErrorResponse.code matched the endpoint's contract error. */
     data class Server<out S : ServerError>(

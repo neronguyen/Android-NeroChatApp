@@ -57,25 +57,25 @@ internal class RetrofitAuthNetwork @Inject constructor(
     private val publicApi by lazy { createApi(baseClient.get()) }
     private val refreshApi by lazy { createApi(refreshClient.get()) }
 
+    private suspend inline fun <reified T, reified S : AuthServerError> authSafeCall(
+        noinline execute: suspend () -> Response<T>,
+    ): Either<NetworkError<S>, T> = safeCall(
+        json = networkJson,
+        errorMapper = { AuthServerError.fromCode(it) as? S },
+        execute = execute,
+    )
+
     override suspend fun register(request: RegisterRequest): Either<NetworkError<AuthServerError.Register>, UserDto> =
-        safeCall(networkJson, { AuthServerError.fromCode(it) as? AuthServerError.Register }) {
-            publicApi.register(request)
-        }
+        authSafeCall { publicApi.register(request) }
 
     override suspend fun login(request: LoginRequest): Either<NetworkError<AuthServerError.Login>, AuthenticatedUserDto> =
-        safeCall(networkJson, { AuthServerError.fromCode(it) as? AuthServerError.Login }) {
-            publicApi.login(request)
-        }
+        authSafeCall { publicApi.login(request) }
 
     override suspend fun refreshToken(request: RefreshTokenRequest): Either<NetworkError<AuthServerError.RefreshToken>, AuthenticatedUserDto> =
-        safeCall(networkJson, { AuthServerError.fromCode(it) as? AuthServerError.RefreshToken }) {
-            refreshApi.refreshToken(request)
-        }
+        authSafeCall { refreshApi.refreshToken(request) }
 
     override suspend fun logout(request: RefreshTokenRequest): Either<NetworkError<Nothing>, Unit> =
-        safeCall(networkJson) {
-            publicApi.logout(request)
-        }
+        safeCall(networkJson) { publicApi.logout(request) }
 
     private fun createApi(client: OkHttpClient): RetrofitAuthNetworkApi {
         val contentType = "application/json".toMediaType()
