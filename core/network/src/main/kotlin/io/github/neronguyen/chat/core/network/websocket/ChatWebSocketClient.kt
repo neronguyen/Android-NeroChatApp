@@ -10,8 +10,8 @@ import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionSt
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState.Connecting
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState.Disconnected
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState.Failed
-import io.github.neronguyenvn.nerochat.contract.chat.IncomingWsMessage
-import io.github.neronguyenvn.nerochat.contract.chat.OutgoingWsMessage
+import io.github.neronguyenvn.nerochat.contract.chat.WsClientMessage
+import io.github.neronguyenvn.nerochat.contract.chat.WsServerEvent
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -51,12 +51,12 @@ internal class ChatWebSocketClient @Inject constructor(
         MutableStateFlow<SocketConnectionState>(Disconnected)
     override val connectionState: StateFlow<SocketConnectionState> = _connectionState.asStateFlow()
 
-    private val _incomingEvents = MutableSharedFlow<OutgoingWsMessage>(
+    private val _incomingEvents = MutableSharedFlow<WsServerEvent>(
         replay = 0,
         extraBufferCapacity = 256,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
-    override val incomingEvents: Flow<OutgoingWsMessage> = _incomingEvents.asSharedFlow()
+    override val incomingEvents: Flow<WsServerEvent> = _incomingEvents.asSharedFlow()
 
     override suspend fun connect() = connectMutex.withLock {
         if (webSocket.load() != null) {
@@ -88,7 +88,7 @@ internal class ChatWebSocketClient @Inject constructor(
     }
 
     override suspend fun sendMessage(
-        message: IncomingWsMessage
+        message: WsClientMessage
     ): Either<DataError.Realtime, Unit> {
         val socket = webSocket.load() ?: return Either.Left(DataError.Realtime.SocketError)
         if (_connectionState.value !is Connected) {
@@ -127,7 +127,7 @@ internal class ChatWebSocketClient @Inject constructor(
         override fun onMessage(webSocket: WebSocket, text: String) {
             if (this@ChatWebSocketClient.webSocket.load() !== webSocket) return
             try {
-                val event = json.decodeFromString<OutgoingWsMessage>(text)
+                val event = json.decodeFromString<WsServerEvent>(text)
                 _incomingEvents.tryEmit(event)
             } catch (_: Exception) {
                 // Ignore unparseable frames

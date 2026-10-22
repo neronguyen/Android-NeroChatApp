@@ -7,8 +7,8 @@ import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
-import io.github.neronguyenvn.nerochat.contract.chat.IncomingWsMessage
-import io.github.neronguyenvn.nerochat.contract.chat.OutgoingWsMessage
+import io.github.neronguyenvn.nerochat.contract.chat.WsClientMessage
+import io.github.neronguyenvn.nerochat.contract.chat.WsServerEvent
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -45,13 +45,13 @@ class RealtimeConnectionManagerTest {
     }
 
     private class FakeChatRealtimeDataSource : ChatRealtimeDataSource {
-        val incomingEventsFlow = MutableSharedFlow<OutgoingWsMessage>()
+        val incomingEventsFlow = MutableSharedFlow<WsServerEvent>()
         val connectionStateFlow = MutableStateFlow<SocketConnectionState>(SocketConnectionState.Disconnected)
 
         var connectCalledCount = 0
         var disconnectCalledCount = 0
 
-        override val incomingEvents: Flow<OutgoingWsMessage> = incomingEventsFlow
+        override val incomingEvents: Flow<WsServerEvent> = incomingEventsFlow
         override val connectionState: StateFlow<SocketConnectionState> = connectionStateFlow
 
         override suspend fun connect() {
@@ -65,7 +65,7 @@ class RealtimeConnectionManagerTest {
         }
 
         override suspend fun sendMessage(
-            message: IncomingWsMessage
+            message: WsClientMessage
         ): Either<DataError.Realtime, Unit> {
             return Either.Right(Unit)
         }

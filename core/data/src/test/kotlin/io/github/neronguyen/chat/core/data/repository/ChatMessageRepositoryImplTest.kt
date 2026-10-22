@@ -18,8 +18,8 @@ import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageSliceDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatParticipantDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatRoomDto
-import io.github.neronguyenvn.nerochat.contract.chat.IncomingWsMessage
-import io.github.neronguyenvn.nerochat.contract.chat.OutgoingWsMessage
+import io.github.neronguyenvn.nerochat.contract.chat.WsClientMessage
+import io.github.neronguyenvn.nerochat.contract.chat.WsServerEvent
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -193,7 +193,7 @@ class ChatMessageRepositoryImplTest {
     private class FakeChatRealtimeDataSource : ChatRealtimeDataSource {
         var shouldSucceed = true
 
-        override val incomingEvents: Flow<OutgoingWsMessage> = emptyFlow()
+        override val incomingEvents: Flow<WsServerEvent> = emptyFlow()
         override val connectionState: StateFlow<SocketConnectionState> =
             MutableStateFlow(SocketConnectionState.Connected)
 
@@ -201,7 +201,7 @@ class ChatMessageRepositoryImplTest {
         override suspend fun disconnect() {}
 
         override suspend fun sendMessage(
-            message: IncomingWsMessage
+            message: WsClientMessage
         ): Either<DataError.Realtime, Unit> {
             return if (shouldSucceed) {
                 Either.Right(Unit)

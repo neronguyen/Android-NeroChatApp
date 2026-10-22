@@ -13,8 +13,8 @@ import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
 import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatParticipantDto
-import io.github.neronguyenvn.nerochat.contract.chat.IncomingWsMessage
-import io.github.neronguyenvn.nerochat.contract.chat.OutgoingWsMessage
+import io.github.neronguyenvn.nerochat.contract.chat.WsClientMessage
+import io.github.neronguyenvn.nerochat.contract.chat.WsServerEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -49,18 +49,18 @@ class ChatRealtimeSyncManagerTest {
     }
 
     private class FakeChatRealtimeDataSource : ChatRealtimeDataSource {
-        val incomingEventsFlow = MutableSharedFlow<OutgoingWsMessage>()
+        val incomingEventsFlow = MutableSharedFlow<WsServerEvent>()
         val connectionStateFlow =
             MutableStateFlow<SocketConnectionState>(SocketConnectionState.Disconnected)
 
-        override val incomingEvents: Flow<OutgoingWsMessage> = incomingEventsFlow
+        override val incomingEvents: Flow<WsServerEvent> = incomingEventsFlow
         override val connectionState: StateFlow<SocketConnectionState> = connectionStateFlow
 
         override suspend fun connect() {}
         override suspend fun disconnect() {}
 
         override suspend fun sendMessage(
-            message: IncomingWsMessage
+            message: WsClientMessage
         ): Either<DataError.Realtime, Unit> {
             return Either.Right(Unit)
         }
@@ -213,7 +213,7 @@ class ChatRealtimeSyncManagerTest {
             createdAt = Instant.fromEpochMilliseconds(1000L)
         )
 
-        fakeDataSource.incomingEventsFlow.emit(OutgoingWsMessage.NewMessage(messageDto))
+        fakeDataSource.incomingEventsFlow.emit(WsServerEvent.NewMessage(messageDto))
 
         testScheduler.advanceUntilIdle()
             assertEquals("server-456", fakeDao.upsertedIncomingOrAckedMessage?.id)
@@ -242,7 +242,7 @@ class ChatRealtimeSyncManagerTest {
             syncManager.initialize()
 
             fakeDataSource.incomingEventsFlow.emit(
-                OutgoingWsMessage.MessageDeleted(roomId = "room-1", messageId = "msg-999")
+                WsServerEvent.MessageDeleted(roomId = "room-1", messageId = "msg-999")
             )
 
             testScheduler.advanceUntilIdle()
@@ -277,7 +277,7 @@ class ChatRealtimeSyncManagerTest {
             )
 
             fakeDataSource.incomingEventsFlow.emit(
-                OutgoingWsMessage.ParticipantJoined(
+                WsServerEvent.ParticipantJoined(
                     roomId = "room-1",
                     newUsers = listOf(newParticipant),
                     addedBy = addedBy
@@ -313,7 +313,7 @@ class ChatRealtimeSyncManagerTest {
         )
 
         fakeDataSource.incomingEventsFlow.emit(
-            OutgoingWsMessage.ParticipantLeft(
+            WsServerEvent.ParticipantLeft(
                 roomId = "room-1",
                 leftUser = leftUser
             )

@@ -9,7 +9,7 @@ import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState.Disconnected
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState.Failed
-import io.github.neronguyenvn.nerochat.contract.chat.OutgoingWsMessage
+import io.github.neronguyenvn.nerochat.contract.chat.WsServerEvent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -34,11 +34,11 @@ class ChatRealtimeSyncManager @Inject constructor(
         appScope.launch(ioDispatcher) {
             realtimeDataSource.incomingEvents.collect { event ->
                 when (event) {
-                    is OutgoingWsMessage.NewMessage -> handleNewMessage(event)
-                    is OutgoingWsMessage.MessageDeleted -> handleMessageDeleted(event)
-                    is OutgoingWsMessage.ParticipantJoined -> handleParticipantJoined(event)
-                    is OutgoingWsMessage.ParticipantLeft -> handleParticipantLeft(event)
-                    is OutgoingWsMessage.Error -> {
+                    is WsServerEvent.NewMessage -> handleNewMessage(event)
+                    is WsServerEvent.MessageDeleted -> handleMessageDeleted(event)
+                    is WsServerEvent.ParticipantJoined -> handleParticipantJoined(event)
+                    is WsServerEvent.ParticipantLeft -> handleParticipantLeft(event)
+                    is WsServerEvent.Error -> {
                         // Ignore or log error
                     }
                 }
@@ -54,16 +54,16 @@ class ChatRealtimeSyncManager @Inject constructor(
         }
     }
 
-    private suspend fun handleNewMessage(event: OutgoingWsMessage.NewMessage) {
+    private suspend fun handleNewMessage(event: WsServerEvent.NewMessage) {
         val entity = event.message.toEntity(status = MessageDeliveryStatus.SENT)
         chatDao.upsertIncomingOrAckedMessage(entity)
     }
 
-    private suspend fun handleMessageDeleted(event: OutgoingWsMessage.MessageDeleted) {
+    private suspend fun handleMessageDeleted(event: WsServerEvent.MessageDeleted) {
         chatDao.updateDeliveryStatus(event.messageId, MessageDeliveryStatus.DELETED)
     }
 
-    private suspend fun handleParticipantJoined(event: OutgoingWsMessage.ParticipantJoined) {
+    private suspend fun handleParticipantJoined(event: WsServerEvent.ParticipantJoined) {
         chatDao.handleParticipantJoined(
             roomId = event.roomId,
             newUsers = event.newUsers.map { it.toEntity() },
@@ -71,7 +71,7 @@ class ChatRealtimeSyncManager @Inject constructor(
         )
     }
 
-    private suspend fun handleParticipantLeft(event: OutgoingWsMessage.ParticipantLeft) {
+    private suspend fun handleParticipantLeft(event: WsServerEvent.ParticipantLeft) {
         chatDao.handleParticipantLeft(
             roomId = event.roomId,
             leftUser = event.leftUser.toEntity(),
