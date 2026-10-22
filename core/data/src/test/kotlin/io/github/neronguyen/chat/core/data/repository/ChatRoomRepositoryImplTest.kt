@@ -10,9 +10,10 @@ import io.github.neronguyen.chat.core.database.model.ChatRoomWithDetails
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
-import io.github.neronguyen.chat.core.network.model.ChatMessageSliceDto
-import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
-import io.github.neronguyen.chat.core.network.model.ChatRoomDto
+import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageSliceDto
+import io.github.neronguyenvn.nerochat.contract.chat.ChatParticipantDto
+import io.github.neronguyenvn.nerochat.contract.chat.ChatRoomDto
+import io.github.neronguyenvn.nerochat.contract.chat.ChatRoomType as ContractChatRoomType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -207,7 +208,7 @@ class ChatRoomRepositoryImplTest {
             directChatResponse = Either.Right(
                 ChatRoomDto(
                     id = "room1",
-                    rawType = "DIRECT",
+                    type = ContractChatRoomType.DIRECT,
                     name = null,
                     creator = ChatParticipantDto("user123", "me@example.com", "Me"),
                     participants = listOf(
@@ -241,7 +242,7 @@ class ChatRoomRepositoryImplTest {
             groupChatResponse = Either.Right(
                 ChatRoomDto(
                     id = "group-room-1",
-                    rawType = "GROUP",
+                    type = ContractChatRoomType.GROUP,
                     name = "Group Test",
                     creator = ChatParticipantDto("user123", "me@example.com", "Me"),
                     participants = listOf(

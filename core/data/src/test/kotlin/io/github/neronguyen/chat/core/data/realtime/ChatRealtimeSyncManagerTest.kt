@@ -10,11 +10,11 @@ import io.github.neronguyen.chat.core.database.model.ChatRoomWithDetails
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
-import io.github.neronguyen.chat.core.network.model.ChatMessageDto
-import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
-import io.github.neronguyen.chat.core.network.model.websocket.WsClientMessage
-import io.github.neronguyen.chat.core.network.model.websocket.WsServerEvent
+import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageDto
+import io.github.neronguyenvn.nerochat.contract.chat.ChatParticipantDto
+import io.github.neronguyenvn.nerochat.contract.chat.IncomingWsMessage
+import io.github.neronguyenvn.nerochat.contract.chat.OutgoingWsMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -49,18 +49,18 @@ class ChatRealtimeSyncManagerTest {
     }
 
     private class FakeChatRealtimeDataSource : ChatRealtimeDataSource {
-        val incomingEventsFlow = MutableSharedFlow<WsServerEvent>()
+        val incomingEventsFlow = MutableSharedFlow<OutgoingWsMessage>()
         val connectionStateFlow =
             MutableStateFlow<SocketConnectionState>(SocketConnectionState.Disconnected)
 
-        override val incomingEvents: Flow<WsServerEvent> = incomingEventsFlow
+        override val incomingEvents: Flow<OutgoingWsMessage> = incomingEventsFlow
         override val connectionState: StateFlow<SocketConnectionState> = connectionStateFlow
 
         override suspend fun connect() {}
         override suspend fun disconnect() {}
 
         override suspend fun sendMessage(
-            message: WsClientMessage
+            message: IncomingWsMessage
         ): Either<DataError.Realtime, Unit> {
             return Either.Right(Unit)
         }
@@ -207,14 +207,13 @@ class ChatRealtimeSyncManagerTest {
 
         val messageDto = ChatMessageDto(
             id = "server-456",
-            tempId = "temp-123",
             roomId = "room-1",
             senderId = "user-1",
             content = "Hello",
             createdAt = Instant.fromEpochMilliseconds(1000L)
         )
 
-        fakeDataSource.incomingEventsFlow.emit(WsServerEvent.NewMessage(messageDto))
+        fakeDataSource.incomingEventsFlow.emit(OutgoingWsMessage.NewMessage(messageDto))
 
         testScheduler.advanceUntilIdle()
             assertEquals("server-456", fakeDao.upsertedIncomingOrAckedMessage?.id)
@@ -243,7 +242,7 @@ class ChatRealtimeSyncManagerTest {
             syncManager.initialize()
 
             fakeDataSource.incomingEventsFlow.emit(
-                WsServerEvent.MessageDeleted(roomId = "room-1", messageId = "msg-999")
+                OutgoingWsMessage.MessageDeleted(roomId = "room-1", messageId = "msg-999")
             )
 
             testScheduler.advanceUntilIdle()
@@ -278,7 +277,7 @@ class ChatRealtimeSyncManagerTest {
             )
 
             fakeDataSource.incomingEventsFlow.emit(
-                WsServerEvent.ParticipantJoined(
+                OutgoingWsMessage.ParticipantJoined(
                     roomId = "room-1",
                     newUsers = listOf(newParticipant),
                     addedBy = addedBy
@@ -314,7 +313,7 @@ class ChatRealtimeSyncManagerTest {
         )
 
         fakeDataSource.incomingEventsFlow.emit(
-            WsServerEvent.ParticipantLeft(
+            OutgoingWsMessage.ParticipantLeft(
                 roomId = "room-1",
                 leftUser = leftUser
             )

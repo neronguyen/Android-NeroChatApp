@@ -6,13 +6,13 @@ import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.BuildConfig
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.di.AuthenticatedOkHttp
-import io.github.neronguyen.chat.core.network.model.AddChatParticipantRequest
-import io.github.neronguyen.chat.core.network.model.ChatMessageSliceDto
-import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
-import io.github.neronguyen.chat.core.network.model.ChatRoomDto
-import io.github.neronguyen.chat.core.network.model.CreateDirectChatRoomRequest
-import io.github.neronguyen.chat.core.network.model.CreateGroupChatRoomRequest
 import io.github.neronguyen.chat.core.network.util.safeCall
+import io.github.neronguyenvn.nerochat.contract.chat.AddChatParticipantRequest
+import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageSliceDto
+import io.github.neronguyenvn.nerochat.contract.chat.ChatParticipantDto
+import io.github.neronguyenvn.nerochat.contract.chat.ChatRoomDto
+import io.github.neronguyenvn.nerochat.contract.chat.CreateDirectChatRoomRequest
+import io.github.neronguyenvn.nerochat.contract.chat.CreateGroupChatRoomRequest
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -127,7 +127,7 @@ internal class RetrofitChatNetwork @Inject constructor(
         either {
             safeCall {
                 networkApi.createGroupChatRoom(
-                    CreateGroupChatRoomRequest(name = name ?: "", participantIds = participantIds)
+                    CreateGroupChatRoomRequest(participantIds = participantIds, name = name)
                 )
             }
         }

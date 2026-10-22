@@ -7,12 +7,12 @@ import io.github.neronguyen.chat.core.network.AuthNetworkDataSource
 import io.github.neronguyen.chat.core.network.BuildConfig
 import io.github.neronguyen.chat.core.network.di.BaseOkHttp
 import io.github.neronguyen.chat.core.network.di.RefreshOkHttp
-import io.github.neronguyen.chat.core.network.model.AuthenticatedUserDto
-import io.github.neronguyen.chat.core.network.model.LoginRequest
-import io.github.neronguyen.chat.core.network.model.RefreshTokenRequest
-import io.github.neronguyen.chat.core.network.model.RegisterRequest
-import io.github.neronguyen.chat.core.network.model.UserDto
 import io.github.neronguyen.chat.core.network.util.safeCall
+import io.github.neronguyenvn.nerochat.contract.auth.AuthenticatedUserDto
+import io.github.neronguyenvn.nerochat.contract.auth.LoginRequest
+import io.github.neronguyenvn.nerochat.contract.auth.RefreshTokenRequest
+import io.github.neronguyenvn.nerochat.contract.auth.RegisterRequest
+import io.github.neronguyenvn.nerochat.contract.auth.UserDto
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient

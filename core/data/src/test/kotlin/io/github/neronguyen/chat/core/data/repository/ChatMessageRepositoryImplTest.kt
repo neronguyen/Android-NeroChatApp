@@ -14,13 +14,13 @@ import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
-import io.github.neronguyen.chat.core.network.model.ChatMessageDto
-import io.github.neronguyen.chat.core.network.model.ChatMessageSliceDto
-import io.github.neronguyen.chat.core.network.model.ChatParticipantDto
-import io.github.neronguyen.chat.core.network.model.ChatRoomDto
+import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageDto
+import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageSliceDto
+import io.github.neronguyenvn.nerochat.contract.chat.ChatParticipantDto
+import io.github.neronguyenvn.nerochat.contract.chat.ChatRoomDto
+import io.github.neronguyenvn.nerochat.contract.chat.IncomingWsMessage
+import io.github.neronguyenvn.nerochat.contract.chat.OutgoingWsMessage
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
-import io.github.neronguyen.chat.core.network.model.websocket.WsClientMessage
-import io.github.neronguyen.chat.core.network.model.websocket.WsServerEvent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -193,7 +193,7 @@ class ChatMessageRepositoryImplTest {
     private class FakeChatRealtimeDataSource : ChatRealtimeDataSource {
         var shouldSucceed = true
 
-        override val incomingEvents: Flow<WsServerEvent> = emptyFlow()
+        override val incomingEvents: Flow<OutgoingWsMessage> = emptyFlow()
         override val connectionState: StateFlow<SocketConnectionState> =
             MutableStateFlow(SocketConnectionState.Connected)
 
@@ -201,7 +201,7 @@ class ChatMessageRepositoryImplTest {
         override suspend fun disconnect() {}
 
         override suspend fun sendMessage(
-            message: WsClientMessage
+            message: IncomingWsMessage
         ): Either<DataError.Realtime, Unit> {
             return if (shouldSucceed) {
                 Either.Right(Unit)

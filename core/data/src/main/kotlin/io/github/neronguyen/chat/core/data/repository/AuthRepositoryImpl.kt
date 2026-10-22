@@ -11,9 +11,9 @@ import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.AuthNetworkDataSource
 import io.github.neronguyen.chat.core.network.interceptor.TokenRefresher
-import io.github.neronguyen.chat.core.network.model.LoginRequest
-import io.github.neronguyen.chat.core.network.model.RefreshTokenRequest
-import io.github.neronguyen.chat.core.network.model.RegisterRequest
+import io.github.neronguyenvn.nerochat.contract.auth.LoginRequest
+import io.github.neronguyenvn.nerochat.contract.auth.RefreshTokenRequest
+import io.github.neronguyenvn.nerochat.contract.auth.RegisterRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock

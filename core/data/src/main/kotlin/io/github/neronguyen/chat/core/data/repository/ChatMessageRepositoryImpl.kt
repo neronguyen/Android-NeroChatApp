@@ -14,7 +14,7 @@ import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
-import io.github.neronguyen.chat.core.network.model.websocket.WsClientMessage
+import io.github.neronguyenvn.nerochat.contract.chat.IncomingWsMessage
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -93,7 +93,7 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
         chatDao.insertSendingMessage(sendingEntity)
 
         return realtimeDataSource.sendMessage(
-            WsClientMessage.NewMessage(
+            IncomingWsMessage.NewMessage(
                 roomId = roomId,
                 content = message,
                 messageId = messageId
@@ -110,7 +110,7 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
         chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.SENDING)
 
         return realtimeDataSource.sendMessage(
-            WsClientMessage.NewMessage(
+            IncomingWsMessage.NewMessage(
                 roomId = entity.roomId,
                 content = entity.content,
                 messageId = messageId
