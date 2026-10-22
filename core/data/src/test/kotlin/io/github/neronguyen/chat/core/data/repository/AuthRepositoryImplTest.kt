@@ -13,6 +13,8 @@ import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.AuthNetworkDataSource
+import io.github.neronguyen.chat.core.network.util.NetworkError
+import io.github.neronguyenvn.nerochat.contract.auth.error.AuthServerError
 import io.github.neronguyenvn.nerochat.contract.auth.AuthenticatedUserDto
 import io.github.neronguyenvn.nerochat.contract.auth.LoginRequest
 import io.github.neronguyenvn.nerochat.contract.auth.RefreshTokenRequest
@@ -131,22 +133,22 @@ class AuthRepositoryImplTest {
     private class FakeAuthNetworkDataSource : AuthNetworkDataSource {
         val refreshRequests = mutableListOf<RefreshTokenRequest>()
         val logoutRequests = mutableListOf<RefreshTokenRequest>()
-        var refreshResult: (RefreshTokenRequest) -> Either<DataError.Network, AuthenticatedUserDto> =
+        var refreshResult: (RefreshTokenRequest) -> Either<NetworkError<AuthServerError.RefreshToken>, AuthenticatedUserDto> =
             { (reqToken) ->
-                Either.Left(DataError.Network.Unknown)
+                Either.Left(NetworkError.Transport.NoInternet)
             }
         var refreshDelayMs: Long = 0
         var logoutDelayMs: Long = 0
 
-        override suspend fun login(request: LoginRequest): Either<DataError.Network, AuthenticatedUserDto> {
-            return Either.Left(DataError.Network.Unknown)
+        override suspend fun login(request: LoginRequest): Either<NetworkError<AuthServerError.Login>, AuthenticatedUserDto> {
+            return Either.Left(NetworkError.Transport.NoInternet)
         }
 
-        override suspend fun register(request: RegisterRequest): Either<DataError.Network, UserDto> {
-            return Either.Left(DataError.Network.Unknown)
+        override suspend fun register(request: RegisterRequest): Either<NetworkError<AuthServerError.Register>, UserDto> {
+            return Either.Left(NetworkError.Transport.NoInternet)
         }
 
-        override suspend fun refreshToken(request: RefreshTokenRequest): Either<DataError.Network, AuthenticatedUserDto> {
+        override suspend fun refreshToken(request: RefreshTokenRequest): Either<NetworkError<AuthServerError.RefreshToken>, AuthenticatedUserDto> {
             synchronized(refreshRequests) {
                 refreshRequests.add(request)
             }
@@ -156,7 +158,7 @@ class AuthRepositoryImplTest {
             return refreshResult(request)
         }
 
-        override suspend fun logout(request: RefreshTokenRequest): Either<DataError.Network, Unit> {
+        override suspend fun logout(request: RefreshTokenRequest): Either<NetworkError<Nothing>, Unit> {
             synchronized(logoutRequests) {
                 logoutRequests.add(request)
             }
@@ -176,7 +178,7 @@ class AuthRepositoryImplTest {
         val result = repository.refresh("stale_access_token")
 
         assertTrue(result.isLeft())
-        assertEquals(DataError.Local.Unauthorized, (result as Either.Left).value)
+        assertEquals(DataError.Local.NotAuthenticated, (result as Either.Left).value)
     }
 
     @Test
@@ -278,14 +280,43 @@ class AuthRepositoryImplTest {
             savedRefreshToken = "invalid_refresh_token"
         }
         val networkDataSource = FakeAuthNetworkDataSource().apply {
-            refreshResult = { Either.Left(DataError.Network.RequestTimeout) }
+            refreshResult = { Either.Left(NetworkError.Transport.Timeout) }
         }
         val repository = createRepository(networkDataSource, tokenDataSource)
 
         val result = repository.refresh("stale_token")
 
         assertTrue(result.isLeft())
-        assertEquals(DataError.Network.RequestTimeout, (result as Either.Left).value)
+        assertEquals(DataError.Connectivity.Timeout, (result as Either.Left).value)
+        // Ensure network timeout does NOT evict the session
+        assertEquals("invalid_refresh_token", tokenDataSource.savedRefreshToken)
+    }
+
+    @Test
+    fun refreshToken_unauthorizedError_clearsAuthDataAndEvictsSession() = runTest {
+        val tokenDataSource = FakeTokenDataSource().apply {
+            savedAccessToken = "stale_token"
+            savedRefreshToken = "invalid_refresh_token"
+        }
+        val networkDataSource = FakeAuthNetworkDataSource().apply {
+            refreshResult = {
+                Either.Left(
+                    NetworkError.Server(
+                        error = AuthServerError.InvalidToken,
+                        message = "Refresh token expired or invalid"
+                    )
+                )
+            }
+        }
+        val repository = createRepository(networkDataSource, tokenDataSource)
+
+        val result = repository.refresh("stale_token")
+
+        assertTrue(result.isLeft())
+        assertEquals(DataError.Remote.Unauthorized, (result as Either.Left).value)
+        assertTrue(tokenDataSource.clearCalled)
+        assertNull(tokenDataSource.savedRefreshToken)
+        assertNull(tokenDataSource.savedAccessToken)
     }
 
     @Test
@@ -341,7 +372,7 @@ class AuthRepositoryImplTest {
         assertTrue(logoutResult.isRight())
         // Since logout acquired lock first and cleared data, refresh returns error
         assertTrue(refreshResult.isLeft())
-        assertEquals(DataError.Local.Unauthorized, (refreshResult as Either.Left).value)
+        assertEquals(DataError.Local.NotAuthenticated, (refreshResult as Either.Left).value)
         assertTrue(tokenDataSource.clearCalled)
     }
 

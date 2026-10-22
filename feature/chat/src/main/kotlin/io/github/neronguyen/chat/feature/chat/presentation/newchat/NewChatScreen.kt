@@ -73,6 +73,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.neronguyen.chat.core.ui.asUiText
+import io.github.neronguyen.chat.feature.chat.presentation.util.asUiText
 import io.github.neronguyen.chat.core.ui.rememberMinLoading
 import io.github.neronguyen.chat.feature.chat.R
 import io.github.neronguyen.chat.feature.chat.presentation.list.ChatAvatar

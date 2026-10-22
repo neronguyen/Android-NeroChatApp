@@ -1,13 +1,16 @@
 package io.github.neronguyen.chat.core.data.repository
 
 import arrow.core.Either
-import arrow.core.flatMap
+import io.github.neronguyen.chat.core.data.mapper.toDataError
 import io.github.neronguyen.chat.core.data.mapper.toDomain
 import io.github.neronguyen.chat.core.data.mapper.toDomainUser
+import io.github.neronguyen.chat.core.data.mapper.toLoginError
+import io.github.neronguyen.chat.core.data.mapper.toRegisterError
 import io.github.neronguyen.chat.core.database.dao.ChatDao
 import io.github.neronguyen.chat.core.datastore.TokenDataSource
 import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.User
+import io.github.neronguyen.chat.core.model.error.AuthError
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.AuthNetworkDataSource
 import io.github.neronguyen.chat.core.network.interceptor.TokenRefresher
@@ -40,12 +43,13 @@ internal class AuthRepositoryImpl @Inject constructor(
     override suspend fun login(
         email: String,
         password: String,
-    ): Either<DataError.Network, User> {
+    ): Either<AuthError.Login, User> {
         return networkDataSource.login(LoginRequest(email = email, password = password))
-            .flatMap { response ->
+            .mapLeft { it.toLoginError() }
+            .map { response ->
                 val user = response.toDomainUser()
                 tokenDataSource.saveAuthData(user, response.accessToken, response.refreshToken)
-                Either.Right(user)
+                user
             }
     }
 
@@ -53,17 +57,18 @@ internal class AuthRepositoryImpl @Inject constructor(
         email: String,
         displayName: String,
         password: String,
-    ): Either<DataError.Network, User> {
+    ): Either<AuthError.Register, User> {
         return networkDataSource.register(
             RegisterRequest(
                 email = email,
                 displayName = displayName,
                 password = password,
             ),
-        ).map { userDto -> userDto.toDomain() }
+        ).mapLeft { it.toRegisterError() }
+        .map { userDto -> userDto.toDomain() }
     }
 
-    override suspend fun logout(): Either<DataError.Network, Unit> {
+    override suspend fun logout(): Either<DataError, Unit> {
         return refreshMutex.withLock {
             val currentRefreshToken = tokenDataSource.getRefreshToken()
             if (currentRefreshToken != null) {
@@ -87,24 +92,18 @@ internal class AuthRepositoryImpl @Inject constructor(
             if (currentRefreshToken.isNullOrBlank()) {
                 tokenDataSource.clearAuthData()
                 chatDao.clearAllChatData()
-                return Either.Left(DataError.Local.Unauthorized)
+                return Either.Left(DataError.Local.NotAuthenticated)
             }
 
             val result = networkDataSource.refreshToken(RefreshTokenRequest(currentRefreshToken))
             result.fold(
-                ifLeft = { error ->
-                    when (error) {
-                        DataError.Network.NoInternet,
-                        DataError.Network.RequestTimeout -> {
-                            // Transient network errors; preserve stored auth data
-                        }
-
-                        else -> {
-                            tokenDataSource.clearAuthData()
-                            chatDao.clearAllChatData()
-                        }
+                ifLeft = { networkError ->
+                    val dataError = networkError.toDataError()
+                    if (dataError is DataError.Remote.Unauthorized) {
+                        tokenDataSource.clearAuthData()
+                        chatDao.clearAllChatData()
                     }
-                    Either.Left(error)
+                    Either.Left(dataError)
                 },
                 ifRight = { response ->
                     tokenDataSource.saveAuthData(
@@ -113,7 +112,7 @@ internal class AuthRepositoryImpl @Inject constructor(
                         response.refreshToken,
                     )
                     Either.Right(response.accessToken)
-                }
+                },
             )
         }
     }

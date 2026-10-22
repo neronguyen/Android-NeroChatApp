@@ -4,8 +4,16 @@ import androidx.compose.runtime.Immutable
 import io.github.neronguyen.chat.core.model.ChatRoomType
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.model.RealtimeConnectionState
+import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.feature.chat.presentation.newchat.ParticipantUiModel
+
+@Immutable
+sealed interface ConversationActionError {
+    data class Send(val error: DataError) : ConversationActionError
+    data class Delete(val error: ChatError.DeleteMessage) : ConversationActionError
+    data class Leave(val error: ChatError.LeaveRoom) : ConversationActionError
+}
 
 @Immutable
 data class ConversationUiState(
@@ -19,11 +27,11 @@ data class ConversationUiState(
     val connectionState: RealtimeConnectionState = RealtimeConnectionState.CONNECTED,
     val isInitialLoading: Boolean = false,
     val isSyncing: Boolean = false,
-    val syncError: DataError.Network? = null,
+    val syncError: ChatError.SyncRoom? = null,
     val isLoadingOlder: Boolean = false,
     val hasMoreOlderMessages: Boolean = true,
-    val loadOlderError: DataError.Network? = null,
-    val actionError: DataError? = null,
+    val loadOlderError: DataError? = null,
+    val actionError: ConversationActionError? = null,
     val isLeavingRoom: Boolean = false,
     val hasLeftRoom: Boolean = false,
     val isBannerDismissed: Boolean = false,
@@ -74,6 +82,6 @@ data class AddParticipantDialogState(
     val isSearching: Boolean = false,
     val isSubmitting: Boolean = false,
     val searchedParticipant: ParticipantUiModel? = null,
-    val searchError: DataError.Network? = null,
-    val submitError: DataError.Network? = null,
+    val searchError: ChatError.FindParticipant? = null,
+    val submitError: ChatError.AddParticipants? = null,
 )

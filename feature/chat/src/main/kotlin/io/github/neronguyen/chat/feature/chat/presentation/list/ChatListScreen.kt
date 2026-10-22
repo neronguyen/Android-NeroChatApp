@@ -289,7 +289,7 @@ private fun ChatListTopBar(
 @Composable
 internal fun SyncStatusBanner(
     isSyncing: Boolean,
-    syncError: DataError.Network?,
+    syncError: DataError?,
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,

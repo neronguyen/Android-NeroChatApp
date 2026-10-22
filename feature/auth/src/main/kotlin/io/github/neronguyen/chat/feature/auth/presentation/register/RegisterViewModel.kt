@@ -46,7 +46,7 @@ class RegisterViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     validationError = AuthValidationError.EmptyEmail,
-                    dataError = null,
+                    authError = null,
                 )
             }
             return
@@ -55,7 +55,7 @@ class RegisterViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     validationError = AuthValidationError.EmptyDisplayName,
-                    dataError = null,
+                    authError = null,
                 )
             }
             return
@@ -64,7 +64,7 @@ class RegisterViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     validationError = AuthValidationError.EmptyPassword,
-                    dataError = null,
+                    authError = null,
                 )
             }
             return
@@ -74,7 +74,7 @@ class RegisterViewModel @Inject constructor(
             it.copy(
                 isLoading = true,
                 validationError = null,
-                dataError = null,
+                authError = null,
             )
         }
 
@@ -84,11 +84,11 @@ class RegisterViewModel @Inject constructor(
                 displayName = displayNameText,
                 password = passwordText,
             )
-                .onLeft { networkError ->
+                .onLeft { error ->
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            dataError = networkError,
+                            authError = error,
                         )
                     }
                 }

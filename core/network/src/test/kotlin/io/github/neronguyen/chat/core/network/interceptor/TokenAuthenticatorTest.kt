@@ -42,7 +42,7 @@ class TokenAuthenticatorTest {
 
     private class FakeTokenRefresher : TokenRefresher {
         var refreshResult: (String) -> Either<DataError, String> =
-            { Either.Left(DataError.Network.Unknown) }
+            { Either.Left(DataError.Remote.Unavailable) }
         val refreshedStaleTokens = mutableListOf<String>()
 
         override suspend fun refresh(staleToken: String): Either<DataError, String> {
@@ -143,7 +143,7 @@ class TokenAuthenticatorTest {
     fun authenticate_returnsNull_whenRefreshFails() = runTest {
         val fakeTokenDS = FakeTokenDataSource().apply { savedAccessToken = "stale_token" }
         val fakeRefresher = FakeTokenRefresher().apply {
-            refreshResult = { Either.Left(DataError.Local.Unauthorized) }
+            refreshResult = { Either.Left(DataError.Remote.Unauthorized) }
         }
 
         val authenticator = TokenAuthenticator(

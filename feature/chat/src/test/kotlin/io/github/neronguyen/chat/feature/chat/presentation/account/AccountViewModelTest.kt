@@ -6,6 +6,7 @@ import io.github.neronguyen.chat.core.data.repository.AuthRepository
 import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.RealtimeConnectionState
 import io.github.neronguyen.chat.core.model.User
+import io.github.neronguyen.chat.core.model.error.AuthError
 import io.github.neronguyen.chat.core.model.error.DataError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -119,7 +120,7 @@ class AccountViewModelTest {
 
     @Test
     fun `ConfirmSignOut handles error and updates signOutError`() = runTest {
-        fakeAuthRepository.logoutResult = Either.Left(DataError.Network.NoInternet)
+        fakeAuthRepository.logoutResult = Either.Left(DataError.Connectivity.NoInternet)
         testScheduler.advanceUntilIdle()
 
         viewModel.onEvent(AccountUiEvent.ConfirmSignOut)
@@ -127,7 +128,7 @@ class AccountViewModelTest {
 
         assertEquals(1, fakeAuthRepository.logoutCallCount)
         assertFalse(viewModel.uiState.value.isSigningOut)
-        assertEquals(DataError.Network.NoInternet, viewModel.uiState.value.signOutError)
+        assertEquals(DataError.Connectivity.NoInternet, viewModel.uiState.value.signOutError)
 
         viewModel.onEvent(AccountUiEvent.DismissError)
         testScheduler.advanceUntilIdle()
@@ -159,14 +160,14 @@ class AccountViewModelTest {
     ) : AuthRepository {
         val authStateFlow = MutableStateFlow(initialAuthState)
         var logoutCallCount = 0
-        var logoutResult: Either<DataError.Network, Unit> = Either.Right(Unit)
+        var logoutResult: Either<DataError, Unit> = Either.Right(Unit)
 
         override fun getAuthState(): Flow<AuthState> = authStateFlow
 
         override suspend fun login(
             email: String,
             password: String
-        ): Either<DataError.Network, User> = Either.Right(
+        ): Either<AuthError.Login, User> = Either.Right(
             User("user-1", email, "User", true)
         )
 
@@ -174,11 +175,11 @@ class AccountViewModelTest {
             email: String,
             displayName: String,
             password: String
-        ): Either<DataError.Network, User> = Either.Right(
+        ): Either<AuthError.Register, User> = Either.Right(
             User("user-1", email, displayName, false)
         )
 
-        override suspend fun logout(): Either<DataError.Network, Unit> {
+        override suspend fun logout(): Either<DataError, Unit> {
             logoutCallCount++
             if (logoutResult.isRight()) {
                 authStateFlow.value = AuthState.Unauthenticated

@@ -8,12 +8,15 @@ import io.github.neronguyen.chat.core.database.entity.ChatRoomEntity
 import io.github.neronguyen.chat.core.database.entity.ChatRoomParticipantCrossRef
 import io.github.neronguyen.chat.core.database.model.ChatRoomWithDetails
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
+import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
+import io.github.neronguyen.chat.core.network.util.NetworkError
 import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageSliceDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatParticipantDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatRoomDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatRoomType as ContractChatRoomType
+import io.github.neronguyenvn.nerochat.contract.chat.error.ChatServerError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -141,38 +144,56 @@ class ChatRoomRepositoryImplTest {
         var lastDirectMessage: String? = null
         var lastGroupParticipantIds: List<String>? = null
         var lastGroupName: String? = null
-        var directChatResponse: Either<DataError.Network, ChatRoomDto> = Either.Left(DataError.Network.Unknown)
-        var groupChatResponse: Either<DataError.Network, ChatRoomDto> = Either.Left(DataError.Network.Unknown)
-        var participantResponse: Either<DataError.Network, ChatParticipantDto> = Either.Left(DataError.Network.Unknown)
+        var directChatResponse: Either<NetworkError<ChatServerError.CreateRoom>, ChatRoomDto> =
+            Either.Left(NetworkError.Transport.NoInternet)
+        var groupChatResponse: Either<NetworkError<ChatServerError.CreateRoom>, ChatRoomDto> =
+            Either.Left(NetworkError.Transport.NoInternet)
+        var participantResponse: Either<NetworkError<ChatServerError.GetParticipant>, ChatParticipantDto> =
+            Either.Left(NetworkError.Transport.NoInternet)
 
-        override suspend fun getChatRoomsForUser(): Either<DataError.Network, List<ChatRoomDto>> = Either.Right(emptyList())
-        override suspend fun getChatRoom(roomId: String): Either<DataError.Network, ChatRoomDto> =
-            Either.Left(DataError.Network.Unknown)
+        override suspend fun getChatRoomsForUser(): Either<NetworkError<Nothing>, List<ChatRoomDto>> =
+            Either.Right(emptyList())
+
+        override suspend fun getChatRoom(roomId: String): Either<NetworkError<ChatServerError.GetRoom>, ChatRoomDto> =
+            Either.Left(NetworkError.Transport.NoInternet)
+
         override suspend fun getMessagesForChatRoom(
             roomId: String,
             before: Instant?
-        ): Either<DataError.Network, ChatMessageSliceDto> =
+        ): Either<NetworkError<Nothing>, ChatMessageSliceDto> =
             Either.Right(ChatMessageSliceDto(messages = emptyList(), hasMore = false))
-        override suspend fun getParticipantByEmail(email: String): Either<DataError.Network, ChatParticipantDto> = participantResponse
-        override suspend fun createDirectChatRoom(targetUserId: String, message: String): Either<DataError.Network, ChatRoomDto> {
+
+        override suspend fun getParticipantByEmail(email: String): Either<NetworkError<ChatServerError.GetParticipant>, ChatParticipantDto> =
+            participantResponse
+
+        override suspend fun createDirectChatRoom(
+            targetUserId: String,
+            message: String
+        ): Either<NetworkError<ChatServerError.CreateRoom>, ChatRoomDto> {
             lastDirectTargetUserId = targetUserId
             lastDirectMessage = message
             return directChatResponse
         }
-        override suspend fun createGroupChatRoom(participantIds: List<String>, name: String?): Either<DataError.Network, ChatRoomDto> {
+
+        override suspend fun createGroupChatRoom(
+            participantIds: List<String>,
+            name: String?
+        ): Either<NetworkError<ChatServerError.CreateRoom>, ChatRoomDto> {
             lastGroupParticipantIds = participantIds
             lastGroupName = name
             return groupChatResponse
         }
+
         override suspend fun addParticipantsToGroup(
             roomId: String,
             userIds: List<String>
-        ): Either<DataError.Network, ChatRoomDto> = Either.Left(DataError.Network.Unknown)
+        ): Either<NetworkError<ChatServerError.AddParticipants>, ChatRoomDto> =
+            Either.Left(NetworkError.Transport.NoInternet)
 
-        override suspend fun leaveChatRoom(roomId: String): Either<DataError.Network, Unit> =
+        override suspend fun leaveChatRoom(roomId: String): Either<NetworkError<ChatServerError.LeaveRoom>, Unit> =
             Either.Right(Unit)
 
-        override suspend fun deleteMessage(messageId: String): Either<DataError.Network, Unit> =
+        override suspend fun deleteMessage(messageId: String): Either<NetworkError<ChatServerError.DeleteMessage>, Unit> =
             Either.Right(Unit)
     }
 

@@ -1,49 +1,85 @@
 package io.github.neronguyen.chat.core.network.util
 
-import arrow.core.raise.Raise
-import io.github.neronguyen.chat.core.model.error.DataError
+import arrow.core.Either
+import io.github.neronguyenvn.nerochat.contract.error.ApiErrorResponse
+import io.github.neronguyenvn.nerochat.contract.error.ServerError
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
 import retrofit2.Response
+import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.nio.channels.UnresolvedAddressException
 
-// TODO: Handle based on response status code
-context(raise: Raise<DataError.Network>)
-internal suspend inline fun <reified T> safeCall(
+internal suspend inline fun <reified T, S : ServerError> safeCall(
+    json: Json,
+    noinline errorMapper: (String) -> S?,
     execute: suspend () -> Response<T>,
-): T {
+): Either<NetworkError<S>, T> {
     try {
         val response = execute()
-        if (!response.isSuccessful) {
-            raise.raise(DataError.Network.Unknown)
+        if (response.isSuccessful) {
+            val body = response.body()
+            return when {
+                body != null -> Either.Right(body)
+                T::class == Unit::class -> Either.Right(Unit as T)
+                else -> Either.Left(NetworkError.Http(response.code(), rawCode = null))
+            }
         }
 
-        val body = response.body()
-        if (body != null) return body
-        if (T::class == Unit::class) return Unit as T
+        val retryAfterSeconds = response.headers()["Retry-After"]?.toLongOrNull()
+        val errorBodyString = response.errorBody()?.string()
 
-        raise.raise(DataError.Network.Unknown)
+        if (!errorBodyString.isNullOrBlank()) {
+            val apiError = try {
+                json.decodeFromString<ApiErrorResponse>(errorBodyString)
+            } catch (_: Exception) {
+                null
+            }
+
+            if (apiError != null) {
+                val serverError = errorMapper(apiError.code)
+                if (serverError != null) {
+                    return Either.Left(
+                        NetworkError.Server(
+                            error = serverError,
+                            message = apiError.message,
+                            fieldErrors = apiError.fieldErrors,
+                            retryAfterSeconds = retryAfterSeconds,
+                        )
+                    )
+                }
+                return Either.Left(NetworkError.Http(response.code(), rawCode = apiError.code))
+            }
+        }
+
+        return Either.Left(NetworkError.Http(response.code(), rawCode = null))
 
     } catch (_: SerializationException) {
-        raise.raise(DataError.Network.Serialization)
-
+        return Either.Left(NetworkError.Transport.Serialization)
     } catch (e: Exception) {
         currentCoroutineContext().ensureActive()
-        raise.raise(e.asNetworkError())
+        return Either.Left(e.toTransportError())
     }
 }
 
-internal fun Exception.asNetworkError(): DataError.Network = when (this) {
+internal suspend inline fun <reified T> safeCall(
+    json: Json,
+    noinline execute: suspend () -> Response<T>,
+): Either<NetworkError<Nothing>, T> = safeCall(
+    json = json,
+    errorMapper = { null },
+    execute = execute
+)
+
+internal fun Exception.toTransportError(): NetworkError.Transport = when (this) {
+    is SocketTimeoutException -> NetworkError.Transport.Timeout
     is UnknownHostException,
     is UnresolvedAddressException,
     is ConnectException,
-        -> DataError.Network.NoInternet
-
-    is SocketTimeoutException -> DataError.Network.RequestTimeout
-
-    else -> DataError.Network.Unknown
+    is IOException -> NetworkError.Transport.NoInternet
+    else -> NetworkError.Transport.NoInternet
 }

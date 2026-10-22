@@ -3,6 +3,8 @@ package io.github.neronguyen.chat.core.data.repository
 import arrow.core.Either
 import io.github.neronguyen.chat.core.common.network.ChatDispatchers
 import io.github.neronguyen.chat.core.common.network.Dispatcher
+import io.github.neronguyen.chat.core.data.mapper.toDataError
+import io.github.neronguyen.chat.core.data.mapper.toDeleteMessageError
 import io.github.neronguyen.chat.core.data.mapper.toDomain
 import io.github.neronguyen.chat.core.data.mapper.toEntity
 import io.github.neronguyen.chat.core.database.dao.ChatDao
@@ -11,6 +13,7 @@ import io.github.neronguyen.chat.core.datastore.TokenDataSource
 import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.ChatMessage
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
+import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
@@ -44,15 +47,17 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
         }.flowOn(defaultDispatcher)
     }
 
-    override suspend fun syncRecentMessages(roomId: String): Either<DataError.Network, Boolean> {
-        return networkDataSource.getMessagesForChatRoom(roomId, before = null).map { slice ->
-            val remoteEntities = slice.messages.map { it.toEntity(MessageDeliveryStatus.SENT) }
-            chatDao.syncRecentMessagesTransaction(roomId, remoteEntities)
-            slice.hasMore
-        }
+    override suspend fun syncRecentMessages(roomId: String): Either<DataError, Boolean> {
+        return networkDataSource.getMessagesForChatRoom(roomId, before = null)
+            .mapLeft { it.toDataError() }
+            .map { slice ->
+                val remoteEntities = slice.messages.map { it.toEntity(MessageDeliveryStatus.SENT) }
+                chatDao.syncRecentMessagesTransaction(roomId, remoteEntities)
+                slice.hasMore
+            }
     }
 
-    override suspend fun loadOlderMessages(roomId: String): Either<DataError.Network, Boolean> {
+    override suspend fun loadOlderMessages(roomId: String): Either<DataError, Boolean> {
         val oldestTimestamp = chatDao.getOldestSentMessageTimestamp(roomId)
             ?: return syncRecentMessages(roomId)
 
@@ -61,7 +66,8 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
         return networkDataSource.getMessagesForChatRoom(
             roomId = roomId,
             before = before
-        ).map { slice ->
+        ).mapLeft { it.toDataError() }
+        .map { slice ->
             if (slice.messages.isNotEmpty()) {
                 chatDao.upsertMessages(slice.messages.map { it.toEntity(MessageDeliveryStatus.SENT) })
             }
@@ -76,7 +82,7 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
         message: String
     ): Either<DataError, Unit> {
         val auth = tokenDataSource.authState.firstOrNull() as? AuthState.Authenticated
-            ?: return Either.Left(DataError.Local.Unauthorized)
+            ?: return Either.Left(DataError.Local.NotAuthenticated)
 
         val messageId = Uuid.generateV7().toString()
         val now = System.currentTimeMillis()
@@ -105,7 +111,7 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
 
     override suspend fun retryMessage(messageId: String): Either<DataError, Unit> {
         val entity = chatDao.getMessageById(messageId)
-            ?: return Either.Left(DataError.Network.Unknown)
+            ?: return Either.Left(DataError.Unexpected.RequestRejected)
 
         chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.SENDING)
 
@@ -120,11 +126,13 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun deleteMessage(messageId: String): Either<DataError.Network, Unit> {
+    override suspend fun deleteMessage(messageId: String): Either<ChatError.DeleteMessage, Unit> {
         return withContext(defaultDispatcher) {
-            networkDataSource.deleteMessage(messageId).map {
-                chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.DELETED)
-            }
+            networkDataSource.deleteMessage(messageId)
+                .mapLeft { it.toDeleteMessageError() }
+                .map {
+                    chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.DELETED)
+                }
         }
     }
 }

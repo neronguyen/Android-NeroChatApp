@@ -14,4 +14,8 @@
     <string name="error_invalid_email">Please enter a valid email address</string>
     <string name="error_empty_password">Password cannot be empty</string>
     <string name="error_empty_display_name">Display name cannot be empty</string>
+
+    <string name="error_invalid_credentials">Invalid email or password</string>
+    <string name="error_email_not_verified">Please verify your email address before logging in</string>
+    <string name="error_email_already_in_use">An account with this email already exists</string>
 </resources>

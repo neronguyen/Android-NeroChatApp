@@ -11,5 +11,5 @@ data class AccountUiState(
     val connectionState: RealtimeConnectionState = RealtimeConnectionState.DISCONNECTED,
     val isSigningOut: Boolean = false,
     val showSignOutConfirmation: Boolean = false,
-    val signOutError: DataError.Network? = null,
+    val signOutError: DataError? = null,
 )

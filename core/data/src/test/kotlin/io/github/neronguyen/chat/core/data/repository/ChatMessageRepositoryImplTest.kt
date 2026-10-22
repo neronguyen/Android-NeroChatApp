@@ -14,10 +14,12 @@ import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
+import io.github.neronguyen.chat.core.network.util.NetworkError
 import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageSliceDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatParticipantDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatRoomDto
+import io.github.neronguyenvn.nerochat.contract.chat.error.ChatServerError
 import io.github.neronguyenvn.nerochat.contract.chat.WsClientMessage
 import io.github.neronguyenvn.nerochat.contract.chat.WsServerEvent
 import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
@@ -206,7 +208,7 @@ class ChatMessageRepositoryImplTest {
             return if (shouldSucceed) {
                 Either.Right(Unit)
             } else {
-                Either.Left(DataError.Realtime.SocketError)
+                Either.Left(DataError.Realtime.SendFailed)
             }
         }
     }
@@ -215,42 +217,45 @@ class ChatMessageRepositoryImplTest {
         var lastRequestedBefore: Instant? = null
         var messagesToReturn = ChatMessageSliceDto(messages = emptyList(), hasMore = false)
 
-        override suspend fun getChatRoomsForUser(): Either<DataError.Network, List<ChatRoomDto>> =
+        override suspend fun getChatRoomsForUser(): Either<NetworkError<Nothing>, List<ChatRoomDto>> =
             Either.Right(emptyList())
 
-        override suspend fun getChatRoom(roomId: String): Either<DataError.Network, ChatRoomDto> =
-            Either.Left(DataError.Network.Unknown)
+        override suspend fun getChatRoom(roomId: String): Either<NetworkError<ChatServerError.GetRoom>, ChatRoomDto> =
+            Either.Left(NetworkError.Transport.NoInternet)
 
         override suspend fun getMessagesForChatRoom(
             roomId: String,
             before: Instant?
-        ): Either<DataError.Network, ChatMessageSliceDto> {
+        ): Either<NetworkError<Nothing>, ChatMessageSliceDto> {
             lastRequestedBefore = before
             return Either.Right(messagesToReturn)
         }
 
-        override suspend fun getParticipantByEmail(email: String): Either<DataError.Network, ChatParticipantDto> =
-            Either.Left(DataError.Network.Unknown)
+        override suspend fun getParticipantByEmail(email: String): Either<NetworkError<ChatServerError.GetParticipant>, ChatParticipantDto> =
+            Either.Left(NetworkError.Transport.NoInternet)
 
         override suspend fun createDirectChatRoom(
             targetUserId: String,
             message: String
-        ): Either<DataError.Network, ChatRoomDto> = Either.Left(DataError.Network.Unknown)
+        ): Either<NetworkError<ChatServerError.CreateRoom>, ChatRoomDto> =
+            Either.Left(NetworkError.Transport.NoInternet)
 
         override suspend fun createGroupChatRoom(
             participantIds: List<String>,
             name: String?
-        ): Either<DataError.Network, ChatRoomDto> = Either.Left(DataError.Network.Unknown)
+        ): Either<NetworkError<ChatServerError.CreateRoom>, ChatRoomDto> =
+            Either.Left(NetworkError.Transport.NoInternet)
 
         override suspend fun addParticipantsToGroup(
             roomId: String,
             userIds: List<String>
-        ): Either<DataError.Network, ChatRoomDto> = Either.Left(DataError.Network.Unknown)
+        ): Either<NetworkError<ChatServerError.AddParticipants>, ChatRoomDto> =
+            Either.Left(NetworkError.Transport.NoInternet)
 
-        override suspend fun leaveChatRoom(roomId: String): Either<DataError.Network, Unit> =
+        override suspend fun leaveChatRoom(roomId: String): Either<NetworkError<ChatServerError.LeaveRoom>, Unit> =
             Either.Right(Unit)
 
-        override suspend fun deleteMessage(messageId: String): Either<DataError.Network, Unit> =
+        override suspend fun deleteMessage(messageId: String): Either<NetworkError<ChatServerError.DeleteMessage>, Unit> =
             Either.Right(Unit)
     }
 
@@ -551,7 +556,7 @@ class ChatMessageRepositoryImplTest {
         val result = repository.sendMessage("room1", "Hello World")
 
         assertTrue(result.isLeft())
-        assertEquals(DataError.Realtime.SocketError, result.leftOrNull())
+        assertEquals(DataError.Realtime.SendFailed, result.leftOrNull())
         assertEquals(1, fakeDao.insertedMessages.size)
 
         val insertedMsg = fakeDao.insertedMessages.first()
@@ -575,7 +580,7 @@ class ChatMessageRepositoryImplTest {
         val result = repository.sendMessage("room1", "Hello World")
 
         assertTrue(result.isLeft())
-        assertEquals(DataError.Local.Unauthorized, result.leftOrNull())
+        assertEquals(DataError.Local.NotAuthenticated, result.leftOrNull())
         assertEquals(0, fakeDao.insertedMessages.size)
     }
 

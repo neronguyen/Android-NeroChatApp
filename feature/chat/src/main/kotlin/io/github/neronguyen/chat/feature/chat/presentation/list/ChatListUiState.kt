@@ -9,7 +9,7 @@ data class ChatListUiState(
     val searchQuery: String = "",
     val isSyncing: Boolean = false,
     val isInitialLoadComplete: Boolean = false,
-    val syncError: DataError.Network? = null,
+    val syncError: DataError? = null,
     val isBannerDismissed: Boolean = false,
 ) {
     val isInitialLoading: Boolean

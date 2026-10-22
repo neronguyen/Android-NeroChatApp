@@ -8,6 +8,8 @@ import io.github.neronguyen.chat.core.model.ChatParticipant
 import io.github.neronguyen.chat.core.model.ChatRoom
 import io.github.neronguyen.chat.core.model.ChatRoomType
 import io.github.neronguyen.chat.core.model.User
+import io.github.neronguyen.chat.core.model.error.AuthError
+import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -235,19 +237,20 @@ class NewChatViewModelTest {
     fun `search network error and create room network error are exposed in uiState`() = runTest {
         testScheduler.advanceUntilIdle()
         fakeChatRoomRepository.participantsByEmail["missing@example.com"] =
-            Either.Left(DataError.Network.Unknown)
+            Either.Left(ChatError.FindParticipant.ParticipantNotFound)
 
         viewModel.onEmailSearchQueryChanged("missing@example.com")
         viewModel.onEvent(NewChatUiEvent.SearchByEmail)
         testScheduler.advanceUntilIdle()
 
-        assertEquals(DataError.Network.Unknown, viewModel.uiState.value.searchError)
+        assertEquals(ChatError.FindParticipant.ParticipantNotFound, viewModel.uiState.value.searchError)
         assertNull(viewModel.uiState.value.searchedParticipant)
 
         // Now succeed search, but fail direct room creation
         fakeChatRoomRepository.participantsByEmail["elena@example.com"] =
             Either.Right(elenaParticipant)
-        fakeChatRoomRepository.createDirectResult = Either.Left(DataError.Network.NoInternet)
+        fakeChatRoomRepository.createDirectResult =
+            Either.Left(ChatError.CreateRoom.Data(DataError.Connectivity.NoInternet))
 
         viewModel.onEmailSearchQueryChanged("elena@example.com")
         viewModel.onEvent(NewChatUiEvent.SearchByEmail)
@@ -259,18 +262,18 @@ class NewChatViewModelTest {
         viewModel.onEvent(NewChatUiEvent.SubmitChat)
         testScheduler.advanceUntilIdle()
 
-        assertEquals(DataError.Network.NoInternet, viewModel.uiState.value.createError)
+        assertEquals(ChatError.CreateRoom.Data(DataError.Connectivity.NoInternet), viewModel.uiState.value.createError)
         assertNull(viewModel.uiState.value.createdRoomId)
     }
 
     private inner class FakeNewChatRoomRepository : ChatRoomRepository {
         val searchEmails = mutableListOf<String>()
         val participantsByEmail =
-            mutableMapOf<String, Either<DataError.Network, ChatParticipant>>()
+            mutableMapOf<String, Either<ChatError.FindParticipant, ChatParticipant>>()
 
         var lastDirectTargetUserId: String? = null
         var lastDirectMessage: String? = null
-        var createDirectResult: Either<DataError.Network, ChatRoom> = Either.Right(
+        var createDirectResult: Either<ChatError.CreateRoom, ChatRoom> = Either.Right(
             ChatRoom(
                 id = "room-direct-1",
                 type = ChatRoomType.DIRECT,
@@ -281,7 +284,7 @@ class NewChatViewModelTest {
 
         var lastGroupParticipantIds: List<String>? = null
         var lastGroupName: String? = null
-        var createGroupResult: Either<DataError.Network, ChatRoom> = Either.Right(
+        var createGroupResult: Either<ChatError.CreateRoom, ChatRoom> = Either.Right(
             ChatRoom(
                 id = "room-group-1",
                 type = ChatRoomType.GROUP,
@@ -293,19 +296,19 @@ class NewChatViewModelTest {
 
         override fun getChats(): Flow<List<ChatRoom>> = MutableStateFlow(emptyList())
 
-        override suspend fun syncChats(): Either<DataError.Network, Unit> = Either.Right(Unit)
+        override suspend fun syncChats(): Either<DataError, Unit> = Either.Right(Unit)
 
         override suspend fun findChatParticipantByEmail(
             email: String,
-        ): Either<DataError.Network, ChatParticipant> {
+        ): Either<ChatError.FindParticipant, ChatParticipant> {
             searchEmails.add(email)
-            return participantsByEmail[email] ?: Either.Left(DataError.Network.Unknown)
+            return participantsByEmail[email] ?: Either.Left(ChatError.FindParticipant.ParticipantNotFound)
         }
 
         override suspend fun createDirectChatRoom(
             targetUserId: String,
             message: String,
-        ): Either<DataError.Network, ChatRoom> {
+        ): Either<ChatError.CreateRoom, ChatRoom> {
             lastDirectTargetUserId = targetUserId
             lastDirectMessage = message
             return createDirectResult
@@ -314,7 +317,7 @@ class NewChatViewModelTest {
         override suspend fun createGroupChatRoom(
             participantIds: List<String>,
             name: String?,
-        ): Either<DataError.Network, ChatRoom> {
+        ): Either<ChatError.CreateRoom, ChatRoom> {
             lastGroupParticipantIds = participantIds
             lastGroupName = name
             return createGroupResult
@@ -323,15 +326,15 @@ class NewChatViewModelTest {
         override fun getChatRoom(roomId: String): Flow<ChatRoom?> =
             kotlinx.coroutines.flow.emptyFlow()
 
-        override suspend fun syncChatRoom(roomId: String): Either<DataError.Network, Unit> =
+        override suspend fun syncChatRoom(roomId: String): Either<ChatError.SyncRoom, Unit> =
             Either.Right(Unit)
 
         override suspend fun addParticipantsToGroup(
             roomId: String,
             userIds: List<String>
-        ): Either<DataError.Network, ChatRoom> = throw UnsupportedOperationException()
+        ): Either<ChatError.AddParticipants, ChatRoom> = throw UnsupportedOperationException()
 
-        override suspend fun leaveChatRoom(roomId: String): Either<DataError.Network, Unit> =
+        override suspend fun leaveChatRoom(roomId: String): Either<ChatError.LeaveRoom, Unit> =
             Either.Right(Unit)
     }
 
@@ -346,7 +349,7 @@ class NewChatViewModelTest {
         override suspend fun login(
             email: String,
             password: String,
-        ): Either<DataError.Network, User> {
+        ): Either<AuthError.Login, User> {
             throw UnsupportedOperationException()
         }
 
@@ -354,10 +357,10 @@ class NewChatViewModelTest {
             email: String,
             displayName: String,
             password: String,
-        ): Either<DataError.Network, User> {
+        ): Either<AuthError.Register, User> {
             throw UnsupportedOperationException()
         }
 
-        override suspend fun logout(): Either<DataError.Network, Unit> = Either.Right(Unit)
+        override suspend fun logout(): Either<DataError, Unit> = Either.Right(Unit)
     }
 }

@@ -13,6 +13,7 @@ import io.github.neronguyen.chat.core.data.repository.AuthRepository
 import io.github.neronguyen.chat.core.data.repository.ChatMessageRepository
 import io.github.neronguyen.chat.core.data.repository.ChatRoomRepository
 import io.github.neronguyen.chat.core.model.AuthState
+import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.feature.chat.presentation.newchat.toParticipantUiModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -56,7 +57,7 @@ class ConversationViewModel @AssistedInject constructor(
     private val limitFlow = MutableStateFlow(INITIAL_PAGE_SIZE)
     private val syncStatusFlow = MutableStateFlow(ConversationSyncStatus())
     private val addParticipantDialogFlow = MutableStateFlow<AddParticipantDialogState?>(null)
-    private val actionErrorFlow = MutableStateFlow<DataError?>(null)
+    private val actionErrorFlow = MutableStateFlow<ConversationActionError?>(null)
     private val isLeavingFlow = MutableStateFlow(false)
     private val hasLeftFlow = MutableStateFlow(false)
     private val isBannerDismissedFlow = MutableStateFlow(false)
@@ -177,7 +178,8 @@ class ConversationViewModel @AssistedInject constructor(
             val roomResult = chatRoomRepository.syncChatRoom(roomId)
             val messagesResult = chatMessageRepository.syncRecentMessages(roomId)
 
-            val error = roomResult.leftOrNull() ?: messagesResult.leftOrNull()
+            val error: ChatError.SyncRoom? = roomResult.leftOrNull()
+                ?: messagesResult.leftOrNull()?.let { ChatError.SyncRoom.Data(it) }
             val hasMore = messagesResult.getOrNull() ?: syncStatusFlow.value.hasMoreOlderMessages
 
             syncStatusFlow.update {
@@ -201,7 +203,7 @@ class ConversationViewModel @AssistedInject constructor(
         viewModelScope.launch {
             chatMessageRepository.sendMessage(roomId, text)
                 .onLeft { error ->
-                    actionErrorFlow.value = error
+                    actionErrorFlow.value = ConversationActionError.Send(error)
                 }
         }
     }
@@ -210,7 +212,7 @@ class ConversationViewModel @AssistedInject constructor(
         viewModelScope.launch {
             chatMessageRepository.retryMessage(messageId)
                 .onLeft { error ->
-                    actionErrorFlow.value = error
+                    actionErrorFlow.value = ConversationActionError.Send(error)
                 }
         }
     }
@@ -219,7 +221,7 @@ class ConversationViewModel @AssistedInject constructor(
         viewModelScope.launch {
             chatMessageRepository.deleteMessage(messageId)
                 .onLeft { error ->
-                    actionErrorFlow.value = error
+                    actionErrorFlow.value = ConversationActionError.Delete(error)
                 }
         }
     }
@@ -256,7 +258,7 @@ class ConversationViewModel @AssistedInject constructor(
             chatRoomRepository.leaveChatRoom(roomId)
                 .onLeft { error ->
                     isLeavingFlow.value = false
-                    actionErrorFlow.value = error
+                    actionErrorFlow.value = ConversationActionError.Leave(error)
                 }
                 .onRight {
                     isLeavingFlow.value = false
@@ -345,9 +347,9 @@ class ConversationViewModel @AssistedInject constructor(
         val isInitialLoading: Boolean = true,
         val isSyncing: Boolean = false,
         val isSyncJobActive: Boolean = false,
-        val syncError: DataError.Network? = null,
+        val syncError: ChatError.SyncRoom? = null,
         val isLoadingOlder: Boolean = false,
         val hasMoreOlderMessages: Boolean = true,
-        val loadOlderError: DataError.Network? = null,
+        val loadOlderError: DataError? = null,
     )
 }

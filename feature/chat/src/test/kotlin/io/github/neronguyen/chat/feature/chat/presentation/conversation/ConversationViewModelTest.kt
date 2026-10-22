@@ -14,6 +14,8 @@ import io.github.neronguyen.chat.core.model.ChatRoomType
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.model.RealtimeConnectionState
 import io.github.neronguyen.chat.core.model.User
+import io.github.neronguyen.chat.core.model.error.AuthError
+import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -219,7 +221,8 @@ class ConversationViewModelTest {
 
     @Test
     fun `leaveRoom on error sets actionError`() = runTest {
-        fakeChatRoomRepository.leaveChatRoomResult = Either.Left(DataError.Network.Unknown)
+        val leaveError = ChatError.LeaveRoom.Data(DataError.Remote.Forbidden)
+        fakeChatRoomRepository.leaveChatRoomResult = Either.Left(leaveError)
         testScheduler.advanceUntilIdle()
 
         viewModel.onEvent(ConversationUiEvent.LeaveRoom)
@@ -228,7 +231,7 @@ class ConversationViewModelTest {
 
         assertFalse(viewModel.uiState.value.hasLeftRoom)
         assertFalse(viewModel.uiState.value.isLeavingRoom)
-        assertEquals(DataError.Network.Unknown, viewModel.uiState.value.actionError)
+        assertEquals(ConversationActionError.Leave(leaveError), viewModel.uiState.value.actionError)
     }
 
     @Test
@@ -277,62 +280,62 @@ class ConversationViewModelTest {
     private class FakeChatRoomRepository(initialRoom: ChatRoom? = null) : ChatRoomRepository {
         val roomFlow = MutableStateFlow(initialRoom)
         val syncChatRoomCalls = mutableListOf<String>()
-        var syncChatRoomResult: Either<DataError.Network, Unit> = Either.Right(Unit)
+        var syncChatRoomResult: Either<ChatError.SyncRoom, Unit> = Either.Right(Unit)
 
         val leaveChatRoomCalls = mutableListOf<String>()
-        var leaveChatRoomResult: Either<DataError.Network, Unit> = Either.Right(Unit)
+        var leaveChatRoomResult: Either<ChatError.LeaveRoom, Unit> = Either.Right(Unit)
 
-        var findParticipantResult: Either<DataError.Network, ChatParticipant> =
-            Either.Left(DataError.Network.Unknown)
+        var findParticipantResult: Either<ChatError.FindParticipant, ChatParticipant> =
+            Either.Left(ChatError.FindParticipant.ParticipantNotFound)
         val addParticipantsCalls = mutableListOf<Pair<String, List<String>>>()
-        var addParticipantsResult: Either<DataError.Network, ChatRoom> =
-            Either.Left(DataError.Network.Unknown)
+        var addParticipantsResult: Either<ChatError.AddParticipants, ChatRoom> =
+            Either.Left(ChatError.AddParticipants.ParticipantNotFound)
 
         override fun getChatRoom(roomId: String): Flow<ChatRoom?> = roomFlow
-        override suspend fun syncChatRoom(roomId: String): Either<DataError.Network, Unit> {
+        override suspend fun syncChatRoom(roomId: String): Either<ChatError.SyncRoom, Unit> {
             syncChatRoomCalls.add(roomId)
             return syncChatRoomResult
         }
 
-        override suspend fun leaveChatRoom(roomId: String): Either<DataError.Network, Unit> {
+        override suspend fun leaveChatRoom(roomId: String): Either<ChatError.LeaveRoom, Unit> {
             leaveChatRoomCalls.add(roomId)
             return leaveChatRoomResult
         }
 
-        override suspend fun findChatParticipantByEmail(email: String): Either<DataError.Network, ChatParticipant> {
+        override suspend fun findChatParticipantByEmail(email: String): Either<ChatError.FindParticipant, ChatParticipant> {
             return findParticipantResult
         }
 
         override suspend fun addParticipantsToGroup(
             roomId: String,
             userIds: List<String>
-        ): Either<DataError.Network, ChatRoom> {
+        ): Either<ChatError.AddParticipants, ChatRoom> {
             addParticipantsCalls.add(roomId to userIds)
             return addParticipantsResult
         }
 
         override fun getChats(): Flow<List<ChatRoom>> = MutableStateFlow(emptyList())
-        override suspend fun syncChats(): Either<DataError.Network, Unit> = Either.Right(Unit)
+        override suspend fun syncChats(): Either<DataError, Unit> = Either.Right(Unit)
         override suspend fun createDirectChatRoom(
             targetUserId: String,
             message: String
-        ): Either<DataError.Network, ChatRoom> =
-            Either.Left(DataError.Network.Unknown)
+        ): Either<ChatError.CreateRoom, ChatRoom> =
+            Either.Left(ChatError.CreateRoom.ParticipantNotFound)
 
         override suspend fun createGroupChatRoom(
             participantIds: List<String>,
             name: String?
-        ): Either<DataError.Network, ChatRoom> =
-            Either.Left(DataError.Network.Unknown)
+        ): Either<ChatError.CreateRoom, ChatRoom> =
+            Either.Left(ChatError.CreateRoom.ParticipantNotFound)
     }
 
     private class FakeChatMessageRepository : ChatMessageRepository {
         val messagesFlow = MutableStateFlow<List<ChatMessage>>(emptyList())
         val syncRecentMessagesCalls = mutableListOf<String>()
-        var syncRecentMessagesResult: Either<DataError.Network, Boolean> = Either.Right(true)
+        var syncRecentMessagesResult: Either<DataError, Boolean> = Either.Right(true)
 
         val loadOlderMessagesCalls = mutableListOf<String>()
-        var loadOlderMessagesResult: Either<DataError.Network, Boolean> = Either.Right(false)
+        var loadOlderMessagesResult: Either<DataError, Boolean> = Either.Right(false)
 
         val sentMessages = mutableListOf<Pair<String, String>>()
         var sendMessageResult: Either<DataError, Unit> = Either.Right(Unit)
@@ -341,16 +344,16 @@ class ConversationViewModelTest {
         var retryMessageResult: Either<DataError, Unit> = Either.Right(Unit)
 
         val deletedMessageIds = mutableListOf<String>()
-        var deleteMessageResult: Either<DataError.Network, Unit> = Either.Right(Unit)
+        var deleteMessageResult: Either<ChatError.DeleteMessage, Unit> = Either.Right(Unit)
 
         override fun getMessages(roomId: String, limit: Int): Flow<List<ChatMessage>> = messagesFlow
 
-        override suspend fun syncRecentMessages(roomId: String): Either<DataError.Network, Boolean> {
+        override suspend fun syncRecentMessages(roomId: String): Either<DataError, Boolean> {
             syncRecentMessagesCalls.add(roomId)
             return syncRecentMessagesResult
         }
 
-        override suspend fun loadOlderMessages(roomId: String): Either<DataError.Network, Boolean> {
+        override suspend fun loadOlderMessages(roomId: String): Either<DataError, Boolean> {
             loadOlderMessagesCalls.add(roomId)
             return loadOlderMessagesResult
         }
@@ -365,7 +368,7 @@ class ConversationViewModelTest {
             return retryMessageResult
         }
 
-        override suspend fun deleteMessage(messageId: String): Either<DataError.Network, Unit> {
+        override suspend fun deleteMessage(messageId: String): Either<ChatError.DeleteMessage, Unit> {
             deletedMessageIds.add(messageId)
             return deleteMessageResult
         }
@@ -388,14 +391,14 @@ class ConversationViewModelTest {
         override suspend fun login(
             email: String,
             password: String
-        ): Either<DataError.Network, User> = Either.Right(user)
+        ): Either<AuthError.Login, User> = Either.Right(user)
 
         override suspend fun register(
             email: String,
             displayName: String,
             password: String
-        ): Either<DataError.Network, User> = Either.Right(user)
+        ): Either<AuthError.Register, User> = Either.Right(user)
 
-        override suspend fun logout(): Either<DataError.Network, Unit> = Either.Right(Unit)
+        override suspend fun logout(): Either<DataError, Unit> = Either.Right(Unit)
     }
 }

@@ -182,7 +182,7 @@ class ChatListViewModel @Inject constructor(
         val isSyncing: Boolean = true,
         val isSyncJobActive: Boolean = false,
         val isInitialLoadComplete: Boolean = false,
-        val syncError: DataError.Network? = null,
+        val syncError: DataError? = null,
         val isBannerDismissed: Boolean = false,
     )
 }

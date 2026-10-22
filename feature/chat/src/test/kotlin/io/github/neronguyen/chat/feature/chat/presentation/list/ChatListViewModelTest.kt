@@ -10,6 +10,8 @@ import io.github.neronguyen.chat.core.model.ChatRoom
 import io.github.neronguyen.chat.core.model.ChatRoomType
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.model.User
+import io.github.neronguyen.chat.core.model.error.AuthError
+import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -132,14 +134,14 @@ class ChatListViewModelTest {
                 participants = listOf(meParticipant, elenaParticipant),
             )
             fakeChatRoomRepository.roomsFlow.value = listOf(cachedRoom)
-            fakeChatRoomRepository.syncResult = Either.Left(DataError.Network.NoInternet)
+            fakeChatRoomRepository.syncResult = Either.Left(DataError.Connectivity.NoInternet)
 
             viewModel = createViewModel()
             testScheduler.advanceUntilIdle()
 
             val stateWithError = viewModel.uiState.value
             assertEquals(1, stateWithError.chats.size)
-            assertEquals(DataError.Network.NoInternet, stateWithError.syncError)
+            assertEquals(DataError.Connectivity.NoInternet, stateWithError.syncError)
             assertTrue(stateWithError.showSyncBanner)
 
             viewModel.onEvent(ChatListUiEvent.DismissSyncBanner)
@@ -203,7 +205,7 @@ class ChatListViewModelTest {
 
     @Test
     fun `RefreshChats during active sync does not start duplicate sync call`() = runTest {
-        val deferred = CompletableDeferred<Either<DataError.Network, Unit>>()
+        val deferred = CompletableDeferred<Either<DataError, Unit>>()
         fakeChatRoomRepository.syncCompletable = deferred
 
         viewModel = createViewModel()
@@ -234,12 +236,12 @@ class ChatListViewModelTest {
 private class FakeChatRoomRepository : ChatRoomRepository {
     val roomsFlow = MutableStateFlow<List<ChatRoom>>(emptyList())
     var syncCallCount = 0
-    var syncResult: Either<DataError.Network, Unit> = Either.Right(Unit)
-    var syncCompletable: CompletableDeferred<Either<DataError.Network, Unit>>? = null
+    var syncResult: Either<DataError, Unit> = Either.Right(Unit)
+    var syncCompletable: CompletableDeferred<Either<DataError, Unit>>? = null
 
     override fun getChats(): Flow<List<ChatRoom>> = roomsFlow
 
-    override suspend fun syncChats(): Either<DataError.Network, Unit> {
+    override suspend fun syncChats(): Either<DataError, Unit> {
         syncCallCount++
         val completable = syncCompletable
         return if (completable != null) {
@@ -251,35 +253,35 @@ private class FakeChatRoomRepository : ChatRoomRepository {
 
     override suspend fun findChatParticipantByEmail(
         email: String,
-    ): Either<DataError.Network, ChatParticipant> {
+    ): Either<ChatError.FindParticipant, ChatParticipant> {
         throw UnsupportedOperationException()
     }
 
     override suspend fun createDirectChatRoom(
         targetUserId: String,
         message: String,
-    ): Either<DataError.Network, ChatRoom> {
+    ): Either<ChatError.CreateRoom, ChatRoom> {
         throw UnsupportedOperationException()
     }
 
     override suspend fun createGroupChatRoom(
         participantIds: List<String>,
         name: String?,
-    ): Either<DataError.Network, ChatRoom> {
+    ): Either<ChatError.CreateRoom, ChatRoom> {
         throw UnsupportedOperationException()
     }
 
     override fun getChatRoom(roomId: String): Flow<ChatRoom?> = kotlinx.coroutines.flow.emptyFlow()
 
-    override suspend fun syncChatRoom(roomId: String): Either<DataError.Network, Unit> =
+    override suspend fun syncChatRoom(roomId: String): Either<ChatError.SyncRoom, Unit> =
         Either.Right(Unit)
 
     override suspend fun addParticipantsToGroup(
         roomId: String,
         userIds: List<String>
-    ): Either<DataError.Network, ChatRoom> = throw UnsupportedOperationException()
+    ): Either<ChatError.AddParticipants, ChatRoom> = throw UnsupportedOperationException()
 
-    override suspend fun leaveChatRoom(roomId: String): Either<DataError.Network, Unit> =
+    override suspend fun leaveChatRoom(roomId: String): Either<ChatError.LeaveRoom, Unit> =
         Either.Right(Unit)
 }
 
@@ -294,7 +296,7 @@ private class FakeAuthRepository(
     override suspend fun login(
         email: String,
         password: String,
-    ): Either<DataError.Network, User> {
+    ): Either<AuthError.Login, User> {
         throw UnsupportedOperationException()
     }
 
@@ -302,9 +304,9 @@ private class FakeAuthRepository(
         email: String,
         displayName: String,
         password: String,
-    ): Either<DataError.Network, User> {
+    ): Either<AuthError.Register, User> {
         throw UnsupportedOperationException()
     }
 
-    override suspend fun logout(): Either<DataError.Network, Unit> = Either.Right(Unit)
+    override suspend fun logout(): Either<DataError, Unit> = Either.Right(Unit)
 }

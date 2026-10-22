@@ -102,6 +102,7 @@ import io.github.neronguyen.chat.core.model.ChatRoomType
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.model.RealtimeConnectionState
 import io.github.neronguyen.chat.core.ui.asUiText
+import io.github.neronguyen.chat.feature.chat.presentation.util.asUiText
 import io.github.neronguyen.chat.feature.chat.R
 import io.github.neronguyen.chat.feature.chat.presentation.list.ChatAvatar
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -217,9 +218,10 @@ fun ConversationScreen(
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 AnimatedVisibility(visible = uiState.showConnectionBanner) {
+                    val errorMessage = uiState.syncError?.asUiText() ?: uiState.loadOlderError?.asUiText()
                     ConversationConnectionBanner(
                         connectionState = uiState.connectionState,
-                        syncError = uiState.syncError ?: uiState.loadOlderError,
+                        errorMessage = errorMessage,
                         onRetry = { onEvent(ConversationUiEvent.RetrySync) },
                         onDismiss = { onEvent(ConversationUiEvent.DismissBanner) },
                     )
@@ -526,7 +528,7 @@ private fun ConversationTopBar(
 @Composable
 private fun ConversationConnectionBanner(
     connectionState: RealtimeConnectionState,
-    syncError: io.github.neronguyen.chat.core.model.error.DataError.Network?,
+    errorMessage: String?,
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -571,7 +573,7 @@ private fun ConversationConnectionBanner(
                     )
                 }
 
-                syncError != null -> {
+                errorMessage != null -> {
                     Icon(
                         imageVector = Icons.Outlined.ErrorOutline,
                         contentDescription = null,
@@ -579,7 +581,7 @@ private fun ConversationConnectionBanner(
                         modifier = Modifier.size(16.dp),
                     )
                     Text(
-                        text = syncError.asUiText(),
+                        text = errorMessage,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                         maxLines = 1,
@@ -604,7 +606,7 @@ private fun ConversationConnectionBanner(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (syncError != null) {
+            if (errorMessage != null) {
                 TextButton(
                     onClick = onRetry,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),

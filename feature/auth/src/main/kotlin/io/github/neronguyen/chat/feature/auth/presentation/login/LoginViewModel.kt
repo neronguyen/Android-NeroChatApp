@@ -45,7 +45,7 @@ class LoginViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     validationError = AuthValidationError.EmptyEmail,
-                    dataError = null,
+                    authError = null,
                 )
             }
             return
@@ -55,7 +55,7 @@ class LoginViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     validationError = AuthValidationError.EmptyPassword,
-                    dataError = null,
+                    authError = null,
                 )
             }
             return
@@ -65,7 +65,7 @@ class LoginViewModel @Inject constructor(
             it.copy(
                 isLoading = true,
                 validationError = null,
-                dataError = null,
+                authError = null,
             )
         }
 
@@ -74,11 +74,11 @@ class LoginViewModel @Inject constructor(
                 email = emailText,
                 password = passwordText,
             )
-                .onLeft { networkError ->
+                .onLeft { error ->
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            dataError = networkError,
+                            authError = error,
                         )
                     }
                 }

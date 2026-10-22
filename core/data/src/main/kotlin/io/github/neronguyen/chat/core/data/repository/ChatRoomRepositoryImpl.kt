@@ -3,13 +3,20 @@ package io.github.neronguyen.chat.core.data.repository
 import arrow.core.Either
 import io.github.neronguyen.chat.core.common.network.ChatDispatchers
 import io.github.neronguyen.chat.core.common.network.Dispatcher
+import io.github.neronguyen.chat.core.data.mapper.toAddParticipantsError
+import io.github.neronguyen.chat.core.data.mapper.toCreateRoomError
+import io.github.neronguyen.chat.core.data.mapper.toDataError
 import io.github.neronguyen.chat.core.data.mapper.toDomain
 import io.github.neronguyen.chat.core.data.mapper.toEntity
+import io.github.neronguyen.chat.core.data.mapper.toFindParticipantError
+import io.github.neronguyen.chat.core.data.mapper.toLeaveRoomError
+import io.github.neronguyen.chat.core.data.mapper.toSyncRoomError
 import io.github.neronguyen.chat.core.database.dao.ChatDao
 import io.github.neronguyen.chat.core.database.entity.ChatRoomParticipantCrossRef
 import io.github.neronguyen.chat.core.model.ChatParticipant
 import io.github.neronguyen.chat.core.model.ChatRoom
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
+import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyenvn.nerochat.contract.chat.ChatParticipantDto
@@ -35,95 +42,108 @@ internal class ChatRoomRepositoryImpl @Inject constructor(
         }.flowOn(defaultDispatcher)
     }
 
-    override suspend fun syncChats(): Either<DataError.Network, Unit> {
+    override suspend fun syncChats(): Either<DataError, Unit> {
         return withContext(context = defaultDispatcher) {
-            networkDataSource.getChatRoomsForUser().map { roomDtos ->
-                val rooms = roomDtos.map { it.toEntity() }
+            networkDataSource.getChatRoomsForUser()
+                .mapLeft { it.toDataError() }
+                .map { roomDtos ->
+                    val rooms = roomDtos.map { it.toEntity() }
 
-                val participants = mutableSetOf<ChatParticipantDto>()
-                roomDtos.forEach { participants.addAll(it.participants + it.creator) }
-                val participantEntities = participants.map { it.toEntity() }
+                    val participants = mutableSetOf<ChatParticipantDto>()
+                    roomDtos.forEach { participants.addAll(it.participants + it.creator) }
+                    val participantEntities = participants.map { it.toEntity() }
 
-                val lastMessages = roomDtos.mapNotNull {
-                    it.lastMessage?.toEntity(MessageDeliveryStatus.SENT)
-                }
-
-                val crossRefs = roomDtos.flatMap { dto ->
-                    val allParticipantIds =
-                        (dto.participants.map { it.userId } + dto.creator.userId).distinct()
-
-                    allParticipantIds.map { userId ->
-                        ChatRoomParticipantCrossRef(roomId = dto.id, userId = userId)
+                    val lastMessages = roomDtos.mapNotNull {
+                        it.lastMessage?.toEntity(MessageDeliveryStatus.SENT)
                     }
-                }
 
-                chatDao.insertFullChats(
-                    rooms = rooms,
-                    participants = participantEntities,
-                    lastMessages = lastMessages,
-                    crossRefs = crossRefs
-                )
-            }
+                    val crossRefs = roomDtos.flatMap { dto ->
+                        val allParticipantIds =
+                            (dto.participants.map { it.userId } + dto.creator.userId).distinct()
+
+                        allParticipantIds.map { userId ->
+                            ChatRoomParticipantCrossRef(roomId = dto.id, userId = userId)
+                        }
+                    }
+
+                    chatDao.insertFullChats(
+                        rooms = rooms,
+                        participants = participantEntities,
+                        lastMessages = lastMessages,
+                        crossRefs = crossRefs
+                    )
+                }
         }
     }
 
-    override suspend fun findChatParticipantByEmail(email: String): Either<DataError.Network, ChatParticipant> {
-        return networkDataSource.getParticipantByEmail(email).map { it.toDomain() }
+    override suspend fun findChatParticipantByEmail(email: String): Either<ChatError.FindParticipant, ChatParticipant> {
+        return networkDataSource.getParticipantByEmail(email)
+            .mapLeft { it.toFindParticipantError() }
+            .map { it.toDomain() }
     }
 
     override suspend fun createDirectChatRoom(
         targetUserId: String,
         message: String
-    ): Either<DataError.Network, ChatRoom> {
-        return networkDataSource.createDirectChatRoom(targetUserId, message).map { dto ->
-            saveChatRoomDto(dto)
-            dto.toDomain()
-        }
+    ): Either<ChatError.CreateRoom, ChatRoom> {
+        return networkDataSource.createDirectChatRoom(targetUserId, message)
+            .mapLeft { it.toCreateRoomError() }
+            .map { dto ->
+                saveChatRoomDto(dto)
+                dto.toDomain()
+            }
     }
 
     override suspend fun createGroupChatRoom(
         participantIds: List<String>,
         name: String?
-    ): Either<DataError.Network, ChatRoom> {
+    ): Either<ChatError.CreateRoom, ChatRoom> {
         val trimmedName = name?.trim()?.ifEmpty { null }
-        return networkDataSource.createGroupChatRoom(participantIds, trimmedName).map { dto ->
-            saveChatRoomDto(dto)
-            dto.toDomain()
-        }
+        return networkDataSource.createGroupChatRoom(participantIds, trimmedName)
+            .mapLeft { it.toCreateRoomError() }
+            .map { dto ->
+                saveChatRoomDto(dto)
+                dto.toDomain()
+            }
     }
 
     override fun getChatRoom(roomId: String): Flow<ChatRoom?> {
         return chatDao.getChatWithDetails(roomId).map { it?.toDomain() }.flowOn(defaultDispatcher)
     }
 
-    override suspend fun syncChatRoom(roomId: String): Either<DataError.Network, Unit> {
+    override suspend fun syncChatRoom(roomId: String): Either<ChatError.SyncRoom, Unit> {
         return withContext(defaultDispatcher) {
-            networkDataSource.getChatRoom(roomId).map { dto ->
-                saveChatRoomDto(dto)
-            }
+            networkDataSource.getChatRoom(roomId)
+                .mapLeft { it.toSyncRoomError() }
+                .map { dto ->
+                    saveChatRoomDto(dto)
+                }
         }
     }
 
     override suspend fun addParticipantsToGroup(
         roomId: String,
         userIds: List<String>
-    ): Either<DataError.Network, ChatRoom> {
+    ): Either<ChatError.AddParticipants, ChatRoom> {
         return withContext(defaultDispatcher) {
-            networkDataSource.addParticipantsToGroup(roomId, userIds).map { dto ->
-                saveChatRoomDto(dto)
-                dto.toDomain()
-            }
+            networkDataSource.addParticipantsToGroup(roomId, userIds)
+                .mapLeft { it.toAddParticipantsError() }
+                .map { dto ->
+                    saveChatRoomDto(dto)
+                    dto.toDomain()
+                }
         }
     }
 
-    override suspend fun leaveChatRoom(roomId: String): Either<DataError.Network, Unit> {
+    override suspend fun leaveChatRoom(roomId: String): Either<ChatError.LeaveRoom, Unit> {
         return withContext(defaultDispatcher) {
-            networkDataSource.leaveChatRoom(roomId).map {
-                chatDao.removeRoomAndData(roomId)
-            }
+            networkDataSource.leaveChatRoom(roomId)
+                .mapLeft { it.toLeaveRoomError() }
+                .map {
+                    chatDao.removeRoomAndData(roomId)
+                }
         }
     }
-
 
     private suspend fun saveChatRoomDto(dto: ChatRoomDto) {
         val participants = (dto.participants + dto.creator)

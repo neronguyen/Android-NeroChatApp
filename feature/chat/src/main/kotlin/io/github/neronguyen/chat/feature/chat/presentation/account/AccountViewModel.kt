@@ -24,7 +24,7 @@ class AccountViewModel @Inject constructor(
 
     private val isSigningOutFlow = MutableStateFlow(false)
     private val showConfirmationFlow = MutableStateFlow(false)
-    private val signOutErrorFlow = MutableStateFlow<DataError.Network?>(null)
+    private val signOutErrorFlow = MutableStateFlow<DataError?>(null)
 
     private val _uiState = MutableStateFlow(AccountUiState())
     val uiState: StateFlow<AccountUiState> = _uiState.asStateFlow()
