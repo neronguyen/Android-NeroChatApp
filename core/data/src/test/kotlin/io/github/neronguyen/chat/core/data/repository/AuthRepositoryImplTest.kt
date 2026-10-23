@@ -158,7 +158,7 @@ class AuthRepositoryImplTest {
             return refreshResult(request)
         }
 
-        override suspend fun logout(request: RefreshTokenRequest): Either<NetworkError<Nothing>, Unit> {
+        override suspend fun logout(request: RefreshTokenRequest): Either<NetworkError<AuthServerError.Logout>, Unit> {
             synchronized(logoutRequests) {
                 logoutRequests.add(request)
             }

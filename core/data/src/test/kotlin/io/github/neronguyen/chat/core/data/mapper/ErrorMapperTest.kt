@@ -4,6 +4,7 @@ import io.github.neronguyen.chat.core.model.error.AuthError
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.util.NetworkError
 import io.github.neronguyenvn.nerochat.contract.auth.error.AuthServerError
+import io.github.neronguyenvn.nerochat.contract.chat.error.ChatServerError
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -142,5 +143,41 @@ class ErrorMapperTest {
             message = "Token invalid"
         )
         assertEquals(DataError.Remote.Unauthorized, invalidToken.toDataError())
+    }
+
+    @Test
+    fun `Auth logout toDataError maps InvalidToken to Unauthorized and ValidationFailed to RequestRejected`() {
+        val invalidToken: NetworkError<AuthServerError.Logout> = NetworkError.Server(
+            error = AuthServerError.InvalidToken,
+            message = "Token invalid"
+        )
+        assertEquals(DataError.Remote.Unauthorized, invalidToken.toDataError())
+
+        val validationFailed: NetworkError<AuthServerError.Logout> = NetworkError.Server(
+            error = AuthServerError.ValidationFailed,
+            message = "Validation failed"
+        )
+        assertEquals(DataError.Unexpected.RequestRejected, validationFailed.toDataError())
+    }
+
+    @Test
+    fun `Chat getMessages toDataError maps Forbidden, Unauthorized, and BadRequest appropriately`() {
+        val forbidden: NetworkError<ChatServerError.GetMessages> = NetworkError.Server(
+            error = ChatServerError.Forbidden,
+            message = "Access denied"
+        )
+        assertEquals(DataError.Remote.Forbidden, forbidden.toDataError())
+
+        val unauthorized: NetworkError<ChatServerError.GetMessages> = NetworkError.Server(
+            error = ChatServerError.Unauthorized,
+            message = "Unauthorized"
+        )
+        assertEquals(DataError.Remote.Unauthorized, unauthorized.toDataError())
+
+        val badRequest: NetworkError<ChatServerError.GetMessages> = NetworkError.Server(
+            error = ChatServerError.BadRequest,
+            message = "Bad request"
+        )
+        assertEquals(DataError.Unexpected.RequestRejected, badRequest.toDataError())
     }
 }

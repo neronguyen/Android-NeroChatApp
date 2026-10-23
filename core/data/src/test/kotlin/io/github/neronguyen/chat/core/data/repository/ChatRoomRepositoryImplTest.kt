@@ -160,7 +160,7 @@ class ChatRoomRepositoryImplTest {
         override suspend fun getMessagesForChatRoom(
             roomId: String,
             before: Instant?
-        ): Either<NetworkError<Nothing>, ChatMessageSliceDto> =
+        ): Either<NetworkError<ChatServerError.GetMessages>, ChatMessageSliceDto> =
             Either.Right(ChatMessageSliceDto(messages = emptyList(), hasMore = false))
 
         override suspend fun getParticipantByEmail(email: String): Either<NetworkError<ChatServerError.GetParticipant>, ChatParticipantDto> =

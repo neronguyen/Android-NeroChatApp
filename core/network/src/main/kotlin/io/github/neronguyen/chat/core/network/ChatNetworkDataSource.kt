@@ -16,7 +16,7 @@ interface ChatNetworkDataSource {
     suspend fun getMessagesForChatRoom(
         roomId: String,
         before: Instant? = null
-    ): Either<NetworkError<Nothing>, ChatMessageSliceDto>
+    ): Either<NetworkError<ChatServerError.GetMessages>, ChatMessageSliceDto>
 
     suspend fun getParticipantByEmail(email: String): Either<NetworkError<ChatServerError.GetParticipant>, ChatParticipantDto>
 

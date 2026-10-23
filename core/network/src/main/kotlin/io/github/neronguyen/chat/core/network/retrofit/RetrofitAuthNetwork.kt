@@ -74,8 +74,8 @@ internal class RetrofitAuthNetwork @Inject constructor(
     override suspend fun refreshToken(request: RefreshTokenRequest): Either<NetworkError<AuthServerError.RefreshToken>, AuthenticatedUserDto> =
         authSafeCall { refreshApi.refreshToken(request) }
 
-    override suspend fun logout(request: RefreshTokenRequest): Either<NetworkError<Nothing>, Unit> =
-        safeCall(networkJson) { publicApi.logout(request) }
+    override suspend fun logout(request: RefreshTokenRequest): Either<NetworkError<AuthServerError.Logout>, Unit> =
+        authSafeCall { publicApi.logout(request) }
 
     private fun createApi(client: OkHttpClient): RetrofitAuthNetworkApi {
         val contentType = "application/json".toMediaType()

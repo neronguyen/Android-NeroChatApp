@@ -226,7 +226,7 @@ class ChatMessageRepositoryImplTest {
         override suspend fun getMessagesForChatRoom(
             roomId: String,
             before: Instant?
-        ): Either<NetworkError<Nothing>, ChatMessageSliceDto> {
+        ): Either<NetworkError<ChatServerError.GetMessages>, ChatMessageSliceDto> {
             lastRequestedBefore = before
             return Either.Right(messagesToReturn)
         }

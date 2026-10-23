@@ -39,7 +39,9 @@ class ChatRealtimeSyncManager @Inject constructor(
                     is WsServerEvent.ParticipantJoined -> handleParticipantJoined(event)
                     is WsServerEvent.ParticipantLeft -> handleParticipantLeft(event)
                     is WsServerEvent.Error -> {
-                        // Ignore or log error
+                        event.messageId?.let { messageId ->
+                            chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.FAILED)
+                        }
                     }
                 }
             }

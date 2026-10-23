@@ -85,7 +85,27 @@ internal fun NetworkError<AuthServerError.RefreshToken>.toDataError(): DataError
     is NetworkError.Http -> toDataError()
 }
 
+@JvmName("toLogoutDataError")
+internal fun NetworkError<AuthServerError.Logout>.toDataError(): DataError = when (this) {
+    is NetworkError.Server -> when (this.error) {
+        AuthServerError.InvalidToken -> DataError.Remote.Unauthorized
+        AuthServerError.ValidationFailed -> DataError.Unexpected.RequestRejected
+    }
+    is NetworkError.Transport -> toDataError()
+    is NetworkError.Http -> toDataError()
+}
+
 // Chat mappers
+@JvmName("toGetMessagesDataError")
+internal fun NetworkError<ChatServerError.GetMessages>.toDataError(): DataError = when (this) {
+    is NetworkError.Server -> when (this.error) {
+        ChatServerError.Forbidden -> DataError.Remote.Forbidden
+        ChatServerError.Unauthorized -> DataError.Remote.Unauthorized
+        ChatServerError.BadRequest -> DataError.Unexpected.RequestRejected
+    }
+    is NetworkError.Transport -> toDataError()
+    is NetworkError.Http -> toDataError()
+}
 internal fun NetworkError<ChatServerError.GetParticipant>.toFindParticipantError(): ChatError.FindParticipant =
     toDomain(wrap = ChatError.FindParticipant::Data) { server ->
         when (server.error) {

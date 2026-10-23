@@ -347,4 +347,32 @@ class ChatRealtimeSyncManagerTest {
             testScheduler.advanceUntilIdle()
             assertEquals(initialCount + 1, fakeDao.markSendingFailedCount)
         }
+
+    @Test
+    fun `WsServerEvent Error with messageId marks message delivery status as FAILED`() = runTest {
+        val externalScope = TestScope(testDispatcher)
+        val fakeDataSource = FakeChatRealtimeDataSource()
+        val fakeDao = FakeChatDao()
+
+        val syncManager = ChatRealtimeSyncManager(
+            realtimeDataSource = fakeDataSource,
+            chatDao = fakeDao,
+            appScope = externalScope,
+            ioDispatcher = testDispatcher
+        )
+
+        syncManager.initialize()
+        testScheduler.advanceUntilIdle()
+
+        fakeDataSource.incomingEventsFlow.emit(
+            WsServerEvent.Error(
+                code = "DUPLICATE_MESSAGE_ID",
+                message = "Message already processed",
+                messageId = "msg-123"
+            )
+        )
+
+        testScheduler.advanceUntilIdle()
+        assertEquals(MessageDeliveryStatus.FAILED, fakeDao.updatedStatuses["msg-123"])
+    }
 }

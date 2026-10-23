@@ -13,5 +13,5 @@ interface AuthNetworkDataSource {
     suspend fun register(request: RegisterRequest): Either<NetworkError<AuthServerError.Register>, UserDto>
     suspend fun login(request: LoginRequest): Either<NetworkError<AuthServerError.Login>, AuthenticatedUserDto>
     suspend fun refreshToken(request: RefreshTokenRequest): Either<NetworkError<AuthServerError.RefreshToken>, AuthenticatedUserDto>
-    suspend fun logout(request: RefreshTokenRequest): Either<NetworkError<Nothing>, Unit>
+    suspend fun logout(request: RefreshTokenRequest): Either<NetworkError<AuthServerError.Logout>, Unit>
 }
