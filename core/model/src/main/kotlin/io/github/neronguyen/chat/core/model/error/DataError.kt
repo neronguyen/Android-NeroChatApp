@@ -28,6 +28,9 @@ sealed interface DataError {
     /** Device-side state problem. */
     sealed interface Local : DataError {
         data object NotAuthenticated : Local
+
+        /** A message referenced by id (e.g. for retry) no longer exists in the local database. */
+        data object MessageNotFound : Local
     }
 
     /** WebSocket channel problem. */

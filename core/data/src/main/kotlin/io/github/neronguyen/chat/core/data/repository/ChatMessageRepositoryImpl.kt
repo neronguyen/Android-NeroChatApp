@@ -111,7 +111,7 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
 
     override suspend fun retryMessage(messageId: String): Either<DataError, Unit> {
         val entity = chatDao.getMessageById(messageId)
-            ?: return Either.Left(DataError.Unexpected.RequestRejected)
+            ?: return Either.Left(DataError.Local.MessageNotFound)
 
         chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.SENDING)
 

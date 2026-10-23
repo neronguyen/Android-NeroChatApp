@@ -101,16 +101,6 @@ internal suspend inline fun <reified T, S : ServerError> safeCall(
     execute = execute,
 )
 
-internal suspend inline fun <reified T> safeCall(
-    json: Json,
-    noinline execute: suspend () -> Response<T>,
-): Either<NetworkError<Nothing>, T> = safeCallInternal(
-    json = json,
-    isUnit = T::class == Unit::class,
-    errorMapper = { null },
-    execute = execute,
-)
-
 internal fun IOException.toTransportError(): NetworkError.Transport = when (this) {
     is SocketTimeoutException -> NetworkError.Transport.Timeout
     is UnknownHostException,

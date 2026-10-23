@@ -217,7 +217,7 @@ class ChatMessageRepositoryImplTest {
         var lastRequestedBefore: Instant? = null
         var messagesToReturn = ChatMessageSliceDto(messages = emptyList(), hasMore = false)
 
-        override suspend fun getChatRoomsForUser(): Either<NetworkError<Nothing>, List<ChatRoomDto>> =
+        override suspend fun getChatRoomsForUser(): Either<NetworkError<ChatServerError.GetRooms>, List<ChatRoomDto>> =
             Either.Right(emptyList())
 
         override suspend fun getChatRoom(roomId: String): Either<NetworkError<ChatServerError.GetRoom>, ChatRoomDto> =
@@ -612,6 +612,20 @@ class ChatMessageRepositoryImplTest {
         val result = repository.retryMessage("msg-123")
         assertTrue(result.isRight())
         assertEquals(MessageDeliveryStatus.SENDING, fakeDao.updatedStatuses["msg-123"])
+    }
+
+    @Test
+    fun `retryMessage returns Local MessageNotFound when message is missing locally`() = runTest {
+        val repository = createRepository(
+            chatDao = FakeChatDao(),
+            realtimeDataSource = FakeChatRealtimeDataSource().apply { shouldSucceed = true },
+            networkDataSource = FakeChatNetworkDataSource(),
+            tokenDataSource = FakeTokenDataSource()
+        )
+
+        val result = repository.retryMessage("missing-id")
+
+        assertEquals(DataError.Local.MessageNotFound, result.leftOrNull())
     }
 
     @Test

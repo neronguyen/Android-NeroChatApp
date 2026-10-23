@@ -151,7 +151,7 @@ class ChatRoomRepositoryImplTest {
         var participantResponse: Either<NetworkError<ChatServerError.GetParticipant>, ChatParticipantDto> =
             Either.Left(NetworkError.Transport.NoInternet)
 
-        override suspend fun getChatRoomsForUser(): Either<NetworkError<Nothing>, List<ChatRoomDto>> =
+        override suspend fun getChatRoomsForUser(): Either<NetworkError<ChatServerError.GetRooms>, List<ChatRoomDto>> =
             Either.Right(emptyList())
 
         override suspend fun getChatRoom(roomId: String): Either<NetworkError<ChatServerError.GetRoom>, ChatRoomDto> =

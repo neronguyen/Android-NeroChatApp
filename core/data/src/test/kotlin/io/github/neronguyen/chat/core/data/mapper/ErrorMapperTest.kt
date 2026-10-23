@@ -67,23 +67,21 @@ class ErrorMapperTest {
     }
 
     @Test
-    fun `NetworkError Nothing toDataError maps Transport and Http accurately`() {
-        val transportNothing: NetworkError<Nothing> = NetworkError.Transport.NoInternet
-        assertEquals(DataError.Connectivity.NoInternet, transportNothing.toDataError())
-
-        val httpNothing: NetworkError<Nothing> = NetworkError.Http(status = 429, retryAfterSeconds = 45L)
-        val dataError = httpNothing.toDataError()
-        assertIs<DataError.Remote.RateLimited>(dataError)
-        assertEquals(45.seconds, dataError.retryAfter)
-    }
-
-    @Test
-    fun `NetworkError wildcard toTransportOrHttpDataError maps Server to RequestRejected`() {
-        val serverError: NetworkError<*> = NetworkError.Server(
-            error = AuthServerError.ValidationFailed,
-            message = "Validation failed"
+    fun `Chat getRooms toDataError maps Unauthorized, Http 429 and Transport`() {
+        val unauthorized: NetworkError<ChatServerError.GetRooms> = NetworkError.Server(
+            error = ChatServerError.Unauthorized,
+            message = "Unauthorized"
         )
-        assertEquals(DataError.Unexpected.RequestRejected, serverError.toTransportOrHttpDataError())
+        assertEquals(DataError.Remote.Unauthorized, unauthorized.toDataError())
+
+        val gateway429: NetworkError<ChatServerError.GetRooms> =
+            NetworkError.Http(status = 429, retryAfterSeconds = 45L)
+        val rateLimited = gateway429.toDataError()
+        assertIs<DataError.Remote.RateLimited>(rateLimited)
+        assertEquals(45.seconds, rateLimited.retryAfter)
+
+        val offline: NetworkError<ChatServerError.GetRooms> = NetworkError.Transport.NoInternet
+        assertEquals(DataError.Connectivity.NoInternet, offline.toDataError())
     }
 
     @Test

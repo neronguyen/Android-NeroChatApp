@@ -9,7 +9,7 @@ import io.github.neronguyenvn.nerochat.contract.chat.error.ChatServerError
 import kotlin.time.Instant
 
 interface ChatNetworkDataSource {
-    suspend fun getChatRoomsForUser(): Either<NetworkError<Nothing>, List<ChatRoomDto>>
+    suspend fun getChatRoomsForUser(): Either<NetworkError<ChatServerError.GetRooms>, List<ChatRoomDto>>
 
     suspend fun getChatRoom(roomId: String): Either<NetworkError<ChatServerError.GetRoom>, ChatRoomDto>
 

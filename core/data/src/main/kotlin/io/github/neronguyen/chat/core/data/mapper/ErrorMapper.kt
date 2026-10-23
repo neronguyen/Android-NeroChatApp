@@ -9,6 +9,11 @@ import io.github.neronguyenvn.nerochat.contract.chat.error.ChatServerError
 import io.github.neronguyenvn.nerochat.contract.error.ServerError
 import kotlin.time.Duration.Companion.seconds
 
+/**
+ * Every endpoint has its own contract sub-interface (even when it only carries `UNAUTHORIZED`),
+ * so there is deliberately no wildcard `NetworkError<*>.toDataError()`: each endpoint gets an
+ * exhaustive mapper below and a new contract error stops compiling until it is handled.
+ */
 internal fun NetworkError.Transport.toDataError(): DataError = when (this) {
     NetworkError.Transport.NoInternet -> DataError.Connectivity.NoInternet
     NetworkError.Transport.Timeout -> DataError.Connectivity.Timeout
@@ -20,25 +25,8 @@ internal fun NetworkError.Http.toDataError(): DataError = when {
     status == 401 -> DataError.Remote.Unauthorized
     status == 403 -> DataError.Remote.Forbidden
     status in 500..599 -> DataError.Remote.Unavailable
-    rawCode != null -> DataError.Unexpected.UnknownCode(status, rawCode)
-    else -> DataError.Unexpected.UnknownCode(status, null)
+    else -> DataError.Unexpected.UnknownCode(status, rawCode)
 }
-
-@JvmName("toNothingDataError")
-internal fun NetworkError<Nothing>.toDataError(): DataError = when (this) {
-    is NetworkError.Transport -> toDataError()
-    is NetworkError.Http -> toDataError()
-    is NetworkError.Server -> DataError.Unexpected.RequestRejected
-}
-
-internal fun NetworkError<*>.toTransportOrHttpDataError(): DataError = when (this) {
-    is NetworkError.Transport -> toDataError()
-    is NetworkError.Http -> toDataError()
-    is NetworkError.Server -> DataError.Unexpected.RequestRejected
-}
-
-@JvmName("toWildcardDataError")
-internal fun NetworkError<*>.toDataError(): DataError = toTransportOrHttpDataError()
 
 /** Generic splitter: callers only describe the endpoint-specific server branch. */
 internal inline fun <S : ServerError, D> NetworkError<S>.toDomain(
@@ -96,6 +84,14 @@ internal fun NetworkError<AuthServerError.Logout>.toDataError(): DataError = whe
 }
 
 // Chat mappers
+@JvmName("toGetRoomsDataError")
+internal fun NetworkError<ChatServerError.GetRooms>.toDataError(): DataError = when (this) {
+    is NetworkError.Server -> when (this.error) {
+        ChatServerError.Unauthorized -> DataError.Remote.Unauthorized
+    }
+    is NetworkError.Transport -> toDataError()
+    is NetworkError.Http -> toDataError()
+}
 @JvmName("toGetMessagesDataError")
 internal fun NetworkError<ChatServerError.GetMessages>.toDataError(): DataError = when (this) {
     is NetworkError.Server -> when (this.error) {

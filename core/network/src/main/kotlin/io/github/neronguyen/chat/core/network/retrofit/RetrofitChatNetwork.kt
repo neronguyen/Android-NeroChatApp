@@ -101,8 +101,8 @@ internal class RetrofitChatNetwork @Inject constructor(
         execute = execute,
     )
 
-    override suspend fun getChatRoomsForUser(): Either<NetworkError<Nothing>, List<ChatRoomDto>> =
-        safeCall(networkJson) { networkApi.getChatRoomsForUser() }
+    override suspend fun getChatRoomsForUser(): Either<NetworkError<ChatServerError.GetRooms>, List<ChatRoomDto>> =
+        chatSafeCall { networkApi.getChatRoomsForUser() }
 
     override suspend fun getChatRoom(roomId: String): Either<NetworkError<ChatServerError.GetRoom>, ChatRoomDto> =
         chatSafeCall { networkApi.getChatRoom(roomId) }
