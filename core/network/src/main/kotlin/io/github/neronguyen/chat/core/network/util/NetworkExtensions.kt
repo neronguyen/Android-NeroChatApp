@@ -12,7 +12,6 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.nio.channels.UnresolvedAddressException
 
-@PublishedApi
 internal suspend fun <T, S : ServerError> safeCallInternal(
     json: Json,
     isUnit: Boolean,
