@@ -204,12 +204,8 @@ class ChatMessageRepositoryImplTest {
 
         override suspend fun sendMessage(
             message: WsClientMessage
-        ): Either<DataError.Realtime, Unit> {
-            return if (shouldSucceed) {
-                Either.Right(Unit)
-            } else {
-                Either.Left(DataError.Realtime.SendFailed)
-            }
+        ): Boolean {
+            return shouldSucceed
         }
     }
 

@@ -2,6 +2,7 @@ package io.github.neronguyen.chat.core.data.di
 
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import io.github.neronguyen.chat.core.data.realtime.RealtimeConnectionManager
@@ -12,6 +13,8 @@ import io.github.neronguyen.chat.core.data.repository.ChatMessageRepository
 import io.github.neronguyen.chat.core.data.repository.ChatMessageRepositoryImpl
 import io.github.neronguyen.chat.core.data.repository.ChatRoomRepository
 import io.github.neronguyen.chat.core.data.repository.ChatRoomRepositoryImpl
+import io.github.neronguyen.chat.core.datastore.TokenDataSource
+import io.github.neronguyen.chat.core.network.interceptor.TokenProvider
 import io.github.neronguyen.chat.core.network.interceptor.TokenRefresher
 import javax.inject.Singleton
 
@@ -48,4 +51,12 @@ internal abstract class DataModule {
     internal abstract fun bindRealtimeConnectionManager(
         impl: RealtimeConnectionManagerImpl
     ): RealtimeConnectionManager
+
+    companion object {
+        @Provides
+        @Singleton
+        internal fun provideTokenProvider(
+            tokenDataSource: TokenDataSource
+        ): TokenProvider = TokenProvider { tokenDataSource.getAccessToken() }
+    }
 }

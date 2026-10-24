@@ -46,8 +46,6 @@ kotlin {
 
 dependencies {
     implementation(projects.core.common)
-    implementation(projects.core.model)
-    implementation(projects.core.datastore)
 
     // Arrow
     implementation(libs.arrow.core)

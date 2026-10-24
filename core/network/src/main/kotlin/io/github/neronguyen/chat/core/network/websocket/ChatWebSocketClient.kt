@@ -1,7 +1,5 @@
 package io.github.neronguyen.chat.core.network.websocket
 
-import arrow.core.Either
-import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.BuildConfig
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
 import io.github.neronguyen.chat.core.network.di.RealtimeOkHttp
@@ -89,24 +87,19 @@ internal class ChatWebSocketClient @Inject constructor(
 
     override suspend fun sendMessage(
         message: WsClientMessage
-    ): Either<DataError.Realtime, Unit> {
-        val socket = webSocket.load() ?: return Either.Left(DataError.Realtime.NotConnected)
+    ): Boolean {
+        val socket = webSocket.load() ?: return false
         if (_connectionState.value !is Connected) {
-            return Either.Left(DataError.Realtime.NotConnected)
+            return false
         }
 
         return try {
             val text = json.encodeToString(message)
-            val enqueued = socket.send(text)
-            if (enqueued) {
-                Either.Right(Unit)
-            } else {
-                Either.Left(DataError.Realtime.SendFailed)
-            }
+            socket.send(text)
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
-            Either.Left(DataError.Realtime.SendFailed)
+            false
         }
     }
 

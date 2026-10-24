@@ -17,6 +17,7 @@ import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
+import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
 import io.github.neronguyenvn.nerochat.contract.chat.WsClientMessage
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -98,15 +99,20 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
 
         chatDao.insertSendingMessage(sendingEntity)
 
-        return realtimeDataSource.sendMessage(
+        val enqueued = realtimeDataSource.sendMessage(
             WsClientMessage.NewMessage(
                 roomId = roomId,
                 content = message,
                 messageId = messageId
             )
-        ).onLeft {
+        )
+        if (!enqueued) {
             chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.FAILED)
+            val isConnected = realtimeDataSource.connectionState.value is SocketConnectionState.Connected
+            val error = if (isConnected) DataError.Realtime.SendFailed else DataError.Realtime.NotConnected
+            return Either.Left(error)
         }
+        return Either.Right(Unit)
     }
 
     override suspend fun retryMessage(messageId: String): Either<DataError, Unit> {
@@ -115,15 +121,20 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
 
         chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.SENDING)
 
-        return realtimeDataSource.sendMessage(
+        val enqueued = realtimeDataSource.sendMessage(
             WsClientMessage.NewMessage(
                 roomId = entity.roomId,
                 content = entity.content,
                 messageId = messageId
             )
-        ).onLeft {
+        )
+        if (!enqueued) {
             chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.FAILED)
+            val isConnected = realtimeDataSource.connectionState.value is SocketConnectionState.Connected
+            val error = if (isConnected) DataError.Realtime.SendFailed else DataError.Realtime.NotConnected
+            return Either.Left(error)
         }
+        return Either.Right(Unit)
     }
 
     override suspend fun deleteMessage(messageId: String): Either<ChatError.DeleteMessage, Unit> {

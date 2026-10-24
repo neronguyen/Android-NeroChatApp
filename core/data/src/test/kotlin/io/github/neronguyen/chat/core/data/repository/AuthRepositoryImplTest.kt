@@ -177,8 +177,7 @@ class AuthRepositoryImplTest {
 
         val result = repository.refresh("stale_access_token")
 
-        assertTrue(result.isLeft())
-        assertEquals(DataError.Local.NotAuthenticated, (result as Either.Left).value)
+        assertNull(result)
     }
 
     @Test
@@ -207,8 +206,7 @@ class AuthRepositoryImplTest {
 
         val result = repository.refresh("old_access_token")
 
-        assertTrue(result.isRight())
-        assertEquals("new_access_token", (result as Either.Right).value)
+        assertEquals("new_access_token", result)
         assertEquals("new_refresh_token", tokenDataSource.savedRefreshToken)
         assertEquals("new_access_token", tokenDataSource.savedAccessToken)
         assertEquals(1, networkDataSource.refreshRequests.size)
@@ -226,8 +224,7 @@ class AuthRepositoryImplTest {
 
             val result = repository.refresh("stale_access_token")
 
-            assertTrue(result.isRight())
-            assertEquals("already_refreshed_access_token", (result as Either.Right).value)
+            assertEquals("already_refreshed_access_token", result)
             assertEquals(0, networkDataSource.refreshRequests.size)
         }
 
@@ -264,17 +261,15 @@ class AuthRepositoryImplTest {
 
             val results = awaitAll(call1, call2)
 
-            assertTrue(results[0].isRight())
-            assertTrue(results[1].isRight())
-            assertEquals("new_access_token", (results[0] as Either.Right).value)
-            assertEquals("new_access_token", (results[1] as Either.Right).value)
+            assertEquals("new_access_token", results[0])
+            assertEquals("new_access_token", results[1])
 
             assertEquals(1, networkDataSource.refreshRequests.size)
             assertEquals("refresh_token_2", tokenDataSource.savedRefreshToken)
         }
 
     @Test
-    fun refreshToken_failure_returnsNetworkError() = runTest {
+    fun refreshToken_failure_returnsNull() = runTest {
         val tokenDataSource = FakeTokenDataSource().apply {
             savedAccessToken = "stale_token"
             savedRefreshToken = "invalid_refresh_token"
@@ -286,8 +281,7 @@ class AuthRepositoryImplTest {
 
         val result = repository.refresh("stale_token")
 
-        assertTrue(result.isLeft())
-        assertEquals(DataError.Connectivity.Timeout, (result as Either.Left).value)
+        assertNull(result)
         // Ensure network timeout does NOT evict the session
         assertEquals("invalid_refresh_token", tokenDataSource.savedRefreshToken)
     }
@@ -312,8 +306,7 @@ class AuthRepositoryImplTest {
 
         val result = repository.refresh("stale_token")
 
-        assertTrue(result.isLeft())
-        assertEquals(DataError.Remote.Unauthorized, (result as Either.Left).value)
+        assertNull(result)
         assertTrue(tokenDataSource.clearCalled)
         assertNull(tokenDataSource.savedRefreshToken)
         assertNull(tokenDataSource.savedAccessToken)
@@ -370,9 +363,8 @@ class AuthRepositoryImplTest {
         val refreshResult = refreshCall.await()
 
         assertTrue(logoutResult.isRight())
-        // Since logout acquired lock first and cleared data, refresh returns error
-        assertTrue(refreshResult.isLeft())
-        assertEquals(DataError.Local.NotAuthenticated, (refreshResult as Either.Left).value)
+        // Since logout acquired lock first and cleared data, refresh returns null
+        assertNull(refreshResult)
         assertTrue(tokenDataSource.clearCalled)
     }
 

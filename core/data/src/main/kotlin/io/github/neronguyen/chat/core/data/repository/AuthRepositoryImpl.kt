@@ -36,8 +36,8 @@ internal class AuthRepositoryImpl @Inject constructor(
         return tokenDataSource.authState
     }
 
-    override suspend fun refresh(staleToken: String): Either<DataError, String> {
-        return refreshToken(staleToken)
+    override suspend fun refresh(staleToken: String): String? {
+        return refreshToken(staleToken).getOrNull()
     }
 
     override suspend fun login(
