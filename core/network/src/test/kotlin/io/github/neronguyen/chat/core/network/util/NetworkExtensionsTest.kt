@@ -124,6 +124,63 @@ class NetworkExtensionsTest {
     }
 
     @Test
+    fun `safeCall extracts retryAfterSeconds from ApiErrorResponse body when header is absent`() = runTest {
+        val errorBody = """
+            {
+                "code": "RATE_LIMIT_EXCEEDED",
+                "message": "Too many requests",
+                "fieldErrors": {},
+                "retryAfterSeconds": 45
+            }
+        """.trimIndent()
+
+        val response = createErrorResponse<String>(
+            code = 429,
+            body = errorBody,
+        )
+
+        val result: Either<NetworkError<AuthServerError.Login>, String> = safeCall(
+            json = json,
+            errorMapper = { AuthServerError.fromCode(it) as? AuthServerError.Login },
+            execute = { response }
+        )
+
+        assertIs<Either.Left<NetworkError.Server<AuthServerError.Login>>>(result)
+        val serverError = result.value
+        assertEquals(AuthServerError.RateLimitExceeded, serverError.error)
+        assertEquals(45L, serverError.retryAfterSeconds)
+    }
+
+    @Test
+    fun `safeCall prioritizes retryAfterSeconds from ApiErrorResponse body over header`() = runTest {
+        val errorBody = """
+            {
+                "code": "RATE_LIMIT_EXCEEDED",
+                "message": "Too many requests",
+                "fieldErrors": {},
+                "retryAfterSeconds": 30
+            }
+        """.trimIndent()
+
+        val response = createErrorResponse<String>(
+            code = 429,
+            body = errorBody,
+            headers = mapOf("Retry-After" to "60")
+        )
+
+        val result: Either<NetworkError<AuthServerError.Login>, String> = safeCall(
+            json = json,
+            errorMapper = { AuthServerError.fromCode(it) as? AuthServerError.Login },
+            execute = { response }
+        )
+
+        assertIs<Either.Left<NetworkError.Server<AuthServerError.Login>>>(result)
+        val serverError = result.value
+        assertEquals(AuthServerError.RateLimitExceeded, serverError.error)
+        assertEquals(30L, serverError.retryAfterSeconds)
+    }
+
+    @Test
     fun `safeCall maps unrecognized contract error to NetworkError Http with rawCode`() = runTest {
         val errorBody = """
             {

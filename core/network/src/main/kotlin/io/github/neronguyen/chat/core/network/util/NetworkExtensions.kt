@@ -59,6 +59,7 @@ internal suspend fun <T, S : ServerError> safeCallInternal(
         }
 
         if (apiError != null) {
+            val effectiveRetryAfter = apiError.retryAfterSeconds ?: retryAfterSeconds
             val serverError = errorMapper(apiError.code)
             if (serverError != null) {
                 return Either.Left(
@@ -66,7 +67,7 @@ internal suspend fun <T, S : ServerError> safeCallInternal(
                         error = serverError,
                         message = apiError.message,
                         fieldErrors = apiError.fieldErrors,
-                        retryAfterSeconds = retryAfterSeconds,
+                        retryAfterSeconds = effectiveRetryAfter,
                     )
                 )
             }
@@ -74,7 +75,7 @@ internal suspend fun <T, S : ServerError> safeCallInternal(
                 NetworkError.Http(
                     status = response.code(),
                     rawCode = apiError.code,
-                    retryAfterSeconds = retryAfterSeconds,
+                    retryAfterSeconds = effectiveRetryAfter,
                 )
             )
         }
