@@ -17,7 +17,6 @@ import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
-import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
 import io.github.neronguyenvn.nerochat.contract.chat.WsClientMessage
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -80,10 +79,10 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
     @OptIn(ExperimentalUuidApi::class)
     override suspend fun sendMessage(
         roomId: String,
-        message: String
-    ): Either<DataError, Unit> {
+        message: String,
+    ) {
         val auth = tokenDataSource.authState.firstOrNull() as? AuthState.Authenticated
-            ?: return Either.Left(DataError.Local.NotAuthenticated)
+            ?: return
 
         val messageId = Uuid.generateV7().toString()
         val now = System.currentTimeMillis()
@@ -94,7 +93,7 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
             senderId = auth.user.id,
             content = message,
             timestamp = now,
-            deliveryStatus = MessageDeliveryStatus.SENDING
+            deliveryStatus = MessageDeliveryStatus.SENDING,
         )
 
         chatDao.insertSendingMessage(sendingEntity)
@@ -103,21 +102,16 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
             WsClientMessage.NewMessage(
                 roomId = roomId,
                 content = message,
-                messageId = messageId
+                messageId = messageId,
             )
         )
         if (!enqueued) {
             chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.FAILED)
-            val isConnected = realtimeDataSource.connectionState.value is SocketConnectionState.Connected
-            val error = if (isConnected) DataError.Realtime.SendFailed else DataError.Realtime.NotConnected
-            return Either.Left(error)
         }
-        return Either.Right(Unit)
     }
 
-    override suspend fun retryMessage(messageId: String): Either<DataError, Unit> {
-        val entity = chatDao.getMessageById(messageId)
-            ?: return Either.Left(DataError.Local.MessageNotFound)
+    override suspend fun retryMessage(messageId: String) {
+        val entity = chatDao.getMessageById(messageId) ?: return
 
         chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.SENDING)
 
@@ -125,16 +119,12 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
             WsClientMessage.NewMessage(
                 roomId = entity.roomId,
                 content = entity.content,
-                messageId = messageId
+                messageId = messageId,
             )
         )
         if (!enqueued) {
             chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.FAILED)
-            val isConnected = realtimeDataSource.connectionState.value is SocketConnectionState.Connected
-            val error = if (isConnected) DataError.Realtime.SendFailed else DataError.Realtime.NotConnected
-            return Either.Left(error)
         }
-        return Either.Right(Unit)
     }
 
     override suspend fun deleteMessage(messageId: String): Either<ChatError.DeleteMessage, Unit> {

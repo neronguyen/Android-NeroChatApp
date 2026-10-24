@@ -10,7 +10,6 @@ import io.github.neronguyen.chat.feature.chat.presentation.newchat.ParticipantUi
 
 @Immutable
 sealed interface ConversationActionError {
-    data class Send(val error: DataError) : ConversationActionError
     data class Delete(val error: ChatError.DeleteMessage) : ConversationActionError
     data class Leave(val error: ChatError.LeaveRoom) : ConversationActionError
 }

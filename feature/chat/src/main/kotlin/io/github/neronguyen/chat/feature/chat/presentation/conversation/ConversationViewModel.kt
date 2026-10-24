@@ -202,18 +202,12 @@ class ConversationViewModel @AssistedInject constructor(
 
         viewModelScope.launch {
             chatMessageRepository.sendMessage(roomId, text)
-                .onLeft { error ->
-                    actionErrorFlow.value = ConversationActionError.Send(error)
-                }
         }
     }
 
     private fun retryMessage(messageId: String) {
         viewModelScope.launch {
             chatMessageRepository.retryMessage(messageId)
-                .onLeft { error ->
-                    actionErrorFlow.value = ConversationActionError.Send(error)
-                }
         }
     }
 

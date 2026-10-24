@@ -338,10 +338,7 @@ class ConversationViewModelTest {
         var loadOlderMessagesResult: Either<DataError, Boolean> = Either.Right(false)
 
         val sentMessages = mutableListOf<Pair<String, String>>()
-        var sendMessageResult: Either<DataError, Unit> = Either.Right(Unit)
-
         val retriedMessageIds = mutableListOf<String>()
-        var retryMessageResult: Either<DataError, Unit> = Either.Right(Unit)
 
         val deletedMessageIds = mutableListOf<String>()
         var deleteMessageResult: Either<ChatError.DeleteMessage, Unit> = Either.Right(Unit)
@@ -358,14 +355,12 @@ class ConversationViewModelTest {
             return loadOlderMessagesResult
         }
 
-        override suspend fun sendMessage(roomId: String, message: String): Either<DataError, Unit> {
+        override suspend fun sendMessage(roomId: String, message: String) {
             sentMessages.add(roomId to message)
-            return sendMessageResult
         }
 
-        override suspend fun retryMessage(messageId: String): Either<DataError, Unit> {
+        override suspend fun retryMessage(messageId: String) {
             retriedMessageIds.add(messageId)
-            return retryMessageResult
         }
 
         override suspend fun deleteMessage(messageId: String): Either<ChatError.DeleteMessage, Unit> {

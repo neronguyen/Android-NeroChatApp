@@ -9,7 +9,6 @@ import io.github.neronguyen.chat.feature.chat.presentation.conversation.Conversa
 
 @Composable
 fun ConversationActionError.asUiText(): String = when (this) {
-    is ConversationActionError.Send -> error.asUiText()
     is ConversationActionError.Delete -> error.asUiText()
     is ConversationActionError.Leave -> error.asUiText()
 }
