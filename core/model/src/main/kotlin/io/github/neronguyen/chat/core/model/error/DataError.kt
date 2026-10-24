@@ -29,10 +29,4 @@ sealed interface DataError {
     sealed interface Local : DataError {
         data object NotAuthenticated : Local
     }
-
-    /** WebSocket channel problem. */
-    sealed interface Realtime : DataError {
-        data object NotConnected : Realtime
-        data object SendFailed : Realtime
-    }
 }
