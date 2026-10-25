@@ -21,12 +21,14 @@ import io.github.neronguyenvn.nerochat.contract.validation.chat.ChatValidationEr
 import io.github.neronguyenvn.nerochat.contract.validation.chat.ChatValidator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.ZoneId
@@ -65,7 +67,13 @@ class ConversationViewModel @AssistedInject constructor(
     private val hasLeftFlow = MutableStateFlow(false)
     private val isBannerDismissedFlow = MutableStateFlow(false)
 
-    private var currentUser: User? = null
+    private val currentUserFlow: StateFlow<User?> = authRepository.getAuthState()
+        .map { (it as? AuthState.Authenticated)?.user }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = null,
+        )
 
     private val _uiState = MutableStateFlow(
         ConversationUiState(
@@ -77,7 +85,6 @@ class ConversationViewModel @AssistedInject constructor(
     val uiState: StateFlow<ConversationUiState> = _uiState.asStateFlow()
 
     init {
-        observeCurrentUser()
         observeConversation()
         syncRoomAndRecentMessages()
     }
@@ -100,17 +107,9 @@ class ConversationViewModel @AssistedInject constructor(
         }
     }
 
-    private fun observeCurrentUser() {
-        viewModelScope.launch {
-            authRepository.getAuthState().collect { state ->
-                currentUser = (state as? AuthState.Authenticated)?.user
-            }
-        }
-    }
-
     private fun observeConversation() {
-        val currentUserIdFlow = authRepository.getAuthState()
-            .map { (it as? AuthState.Authenticated)?.user?.id }
+        val currentUserIdFlow = currentUserFlow
+            .map { it?.id }
             .distinctUntilChanged()
 
         val messagesFlow = limitFlow.flatMapLatest { limit ->
@@ -281,14 +280,16 @@ class ConversationViewModel @AssistedInject constructor(
     }
 
     private fun dismissAddParticipantDialog() {
+        addParticipantEmailState.clearText()
         addParticipantDialogFlow.value = null
     }
 
     private fun searchParticipantByEmail() {
         val email = addParticipantEmailState.text.toString().trim()
+        val current = currentUserFlow.value
         val validationError = ChatValidator.validateSearchEmail(
             email = email,
-            currentUserEmail = currentUser?.email,
+            currentUserEmail = current?.email,
         )
         if (validationError != null) {
             addParticipantDialogFlow.update {
@@ -321,7 +322,7 @@ class ConversationViewModel @AssistedInject constructor(
                     }
                 }
                 .onRight { participant ->
-                    val latestSelf = currentUser
+                    val latestSelf = currentUserFlow.value
                     val isSelf = latestSelf != null && (
                         participant.userId == latestSelf.id ||
                             participant.email.equals(latestSelf.email, ignoreCase = true)
