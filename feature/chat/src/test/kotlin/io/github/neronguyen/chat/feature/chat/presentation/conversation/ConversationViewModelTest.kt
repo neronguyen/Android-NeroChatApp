@@ -221,7 +221,7 @@ class ConversationViewModelTest {
 
     @Test
     fun `leaveRoom on error sets actionError`() = runTest {
-        val leaveError = ChatError.LeaveRoom.Data(DataError.Remote.Forbidden)
+        val leaveError = ChatError.Data(DataError.Remote.Forbidden)
         fakeChatRoomRepository.leaveChatRoomResult = Either.Left(leaveError)
         testScheduler.advanceUntilIdle()
 
@@ -286,10 +286,10 @@ class ConversationViewModelTest {
         var leaveChatRoomResult: Either<ChatError.LeaveRoom, Unit> = Either.Right(Unit)
 
         var findParticipantResult: Either<ChatError.FindParticipant, ChatParticipant> =
-            Either.Left(ChatError.FindParticipant.ParticipantNotFound)
+            Either.Left(ChatError.ParticipantNotFound)
         val addParticipantsCalls = mutableListOf<Pair<String, List<String>>>()
         var addParticipantsResult: Either<ChatError.AddParticipants, ChatRoom> =
-            Either.Left(ChatError.AddParticipants.ParticipantNotFound)
+            Either.Left(ChatError.ParticipantNotFound)
 
         override fun getChatRoom(roomId: String): Flow<ChatRoom?> = roomFlow
         override suspend fun syncChatRoom(roomId: String): Either<ChatError.SyncRoom, Unit> {
@@ -320,13 +320,13 @@ class ConversationViewModelTest {
             targetUserId: String,
             message: String
         ): Either<ChatError.CreateRoom, ChatRoom> =
-            Either.Left(ChatError.CreateRoom.ParticipantNotFound)
+            Either.Left(ChatError.ParticipantNotFound)
 
         override suspend fun createGroupChatRoom(
             participantIds: List<String>,
             name: String?
         ): Either<ChatError.CreateRoom, ChatRoom> =
-            Either.Left(ChatError.CreateRoom.ParticipantNotFound)
+            Either.Left(ChatError.ParticipantNotFound)
     }
 
     private class FakeChatMessageRepository : ChatMessageRepository {

@@ -169,11 +169,11 @@ class RegisterViewModelTest {
         testScheduler.runCurrent()
         assertEquals(1, fakeRepository.registerCallCount)
 
-        completable.complete(Either.Left(AuthError.Register.EmailAlreadyInUse))
+        completable.complete(Either.Left(AuthError.EmailAlreadyInUse))
         testScheduler.advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isLoading)
-        assertEquals(AuthError.Register.EmailAlreadyInUse, viewModel.uiState.value.authError)
+        assertEquals(AuthError.EmailAlreadyInUse, viewModel.uiState.value.authError)
 
         completable = CompletableDeferred()
         fakeRepository.registerCompletable = completable

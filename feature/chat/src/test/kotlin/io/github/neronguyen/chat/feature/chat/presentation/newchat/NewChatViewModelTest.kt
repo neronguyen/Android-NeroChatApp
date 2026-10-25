@@ -237,20 +237,20 @@ class NewChatViewModelTest {
     fun `search network error and create room network error are exposed in uiState`() = runTest {
         testScheduler.advanceUntilIdle()
         fakeChatRoomRepository.participantsByEmail["missing@example.com"] =
-            Either.Left(ChatError.FindParticipant.ParticipantNotFound)
+            Either.Left(ChatError.ParticipantNotFound)
 
         viewModel.onEmailSearchQueryChanged("missing@example.com")
         viewModel.onEvent(NewChatUiEvent.SearchByEmail)
         testScheduler.advanceUntilIdle()
 
-        assertEquals(ChatError.FindParticipant.ParticipantNotFound, viewModel.uiState.value.searchError)
+        assertEquals(ChatError.ParticipantNotFound, viewModel.uiState.value.searchError)
         assertNull(viewModel.uiState.value.searchedParticipant)
 
         // Now succeed search, but fail direct room creation
         fakeChatRoomRepository.participantsByEmail["elena@example.com"] =
             Either.Right(elenaParticipant)
         fakeChatRoomRepository.createDirectResult =
-            Either.Left(ChatError.CreateRoom.Data(DataError.Connectivity.NoInternet))
+            Either.Left(ChatError.Data(DataError.Connectivity.NoInternet))
 
         viewModel.onEmailSearchQueryChanged("elena@example.com")
         viewModel.onEvent(NewChatUiEvent.SearchByEmail)
@@ -262,7 +262,7 @@ class NewChatViewModelTest {
         viewModel.onEvent(NewChatUiEvent.SubmitChat)
         testScheduler.advanceUntilIdle()
 
-        assertEquals(ChatError.CreateRoom.Data(DataError.Connectivity.NoInternet), viewModel.uiState.value.createError)
+        assertEquals(ChatError.Data(DataError.Connectivity.NoInternet), viewModel.uiState.value.createError)
         assertNull(viewModel.uiState.value.createdRoomId)
     }
 
@@ -302,7 +302,7 @@ class NewChatViewModelTest {
             email: String,
         ): Either<ChatError.FindParticipant, ChatParticipant> {
             searchEmails.add(email)
-            return participantsByEmail[email] ?: Either.Left(ChatError.FindParticipant.ParticipantNotFound)
+            return participantsByEmail[email] ?: Either.Left(ChatError.ParticipantNotFound)
         }
 
         override suspend fun createDirectChatRoom(

@@ -14,41 +14,11 @@ fun ConversationActionError.asUiText(): String = when (this) {
 }
 
 @Composable
-fun ChatError.FindParticipant.asUiText(): String = when (this) {
-    ChatError.FindParticipant.ParticipantNotFound -> stringResource(R.string.chat_error_participant_not_found)
-    is ChatError.FindParticipant.Data -> error.asUiText()
-}
-
-@Composable
-fun ChatError.SyncRoom.asUiText(): String = when (this) {
-    ChatError.SyncRoom.RoomNotFound -> stringResource(R.string.chat_error_room_not_found)
-    is ChatError.SyncRoom.Data -> error.asUiText()
-}
-
-@Composable
-fun ChatError.CreateRoom.asUiText(): String = when (this) {
-    ChatError.CreateRoom.ParticipantNotFound -> stringResource(R.string.chat_error_participant_not_found)
-    ChatError.CreateRoom.InvalidRoomSize -> stringResource(R.string.chat_error_invalid_room_size)
-    is ChatError.CreateRoom.Data -> error.asUiText()
-}
-
-@Composable
-fun ChatError.AddParticipants.asUiText(): String = when (this) {
-    ChatError.AddParticipants.ParticipantNotFound -> stringResource(R.string.chat_error_participant_not_found)
-    ChatError.AddParticipants.RoomNotFound -> stringResource(R.string.chat_error_room_not_found)
-    ChatError.AddParticipants.AlreadyInRoom -> stringResource(R.string.chat_error_already_in_room)
-    is ChatError.AddParticipants.Data -> error.asUiText()
-}
-
-@Composable
-fun ChatError.LeaveRoom.asUiText(): String = when (this) {
-    ChatError.LeaveRoom.ParticipantNotFound -> stringResource(R.string.chat_error_participant_not_found)
-    ChatError.LeaveRoom.RoomNotFound -> stringResource(R.string.chat_error_room_not_found)
-    is ChatError.LeaveRoom.Data -> error.asUiText()
-}
-
-@Composable
-fun ChatError.DeleteMessage.asUiText(): String = when (this) {
-    ChatError.DeleteMessage.MessageNotFound -> stringResource(R.string.chat_error_message_not_found)
-    is ChatError.DeleteMessage.Data -> error.asUiText()
+fun ChatError.asUiText(): String = when (this) {
+    ChatError.ParticipantNotFound -> stringResource(R.string.chat_error_participant_not_found)
+    ChatError.RoomNotFound -> stringResource(R.string.chat_error_room_not_found)
+    ChatError.InvalidRoomSize -> stringResource(R.string.chat_error_invalid_room_size)
+    ChatError.AlreadyInRoom -> stringResource(R.string.chat_error_already_in_room)
+    ChatError.MessageNotFound -> stringResource(R.string.chat_error_message_not_found)
+    is ChatError.Data -> error.asUiText()
 }

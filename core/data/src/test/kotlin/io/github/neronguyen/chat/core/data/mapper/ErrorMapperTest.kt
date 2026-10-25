@@ -90,13 +90,13 @@ class ErrorMapperTest {
             error = AuthServerError.InvalidCredentials,
             message = "Invalid credentials"
         )
-        assertEquals(AuthError.Login.InvalidCredentials, invalidCreds.toLoginError())
+        assertEquals(AuthError.InvalidCredentials, invalidCreds.toLoginError())
 
         val emailNotVerified: NetworkError<AuthServerError.Login> = NetworkError.Server(
             error = AuthServerError.EmailNotVerified,
             message = "Email not verified"
         )
-        assertEquals(AuthError.Login.EmailNotVerified, emailNotVerified.toLoginError())
+        assertEquals(AuthError.EmailNotVerified, emailNotVerified.toLoginError())
     }
 
     @Test
@@ -108,7 +108,7 @@ class ErrorMapperTest {
         )
         val domainError = rateLimited.toLoginError()
 
-        assertIs<AuthError.Login.Data>(domainError)
+        assertIs<AuthError.Data>(domainError)
         val innerData = domainError.error
         assertIs<DataError.Remote.RateLimited>(innerData)
         assertEquals(120.seconds, innerData.retryAfter)
@@ -119,7 +119,7 @@ class ErrorMapperTest {
         val http429: NetworkError<AuthServerError.Login> = NetworkError.Http(status = 429, retryAfterSeconds = 30L)
         val domainError = http429.toLoginError()
 
-        assertIs<AuthError.Login.Data>(domainError)
+        assertIs<AuthError.Data>(domainError)
         val innerData = domainError.error
         assertIs<DataError.Remote.RateLimited>(innerData)
         assertEquals(30.seconds, innerData.retryAfter)
@@ -131,7 +131,7 @@ class ErrorMapperTest {
             error = AuthServerError.UserAlreadyExists,
             message = "User already exists"
         )
-        assertEquals(AuthError.Register.EmailAlreadyInUse, userExists.toRegisterError())
+        assertEquals(AuthError.EmailAlreadyInUse, userExists.toRegisterError())
     }
 
     @Test

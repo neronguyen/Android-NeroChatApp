@@ -179,7 +179,7 @@ class ConversationViewModel @AssistedInject constructor(
             val messagesResult = chatMessageRepository.syncRecentMessages(roomId)
 
             val error: ChatError.SyncRoom? = roomResult.leftOrNull()
-                ?: messagesResult.leftOrNull()?.let { ChatError.SyncRoom.Data(it) }
+                ?: messagesResult.leftOrNull()?.let { ChatError.Data(it) }
             val hasMore = messagesResult.getOrNull() ?: syncStatusFlow.value.hasMoreOlderMessages
 
             syncStatusFlow.update {

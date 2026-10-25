@@ -159,11 +159,11 @@ class LoginViewModelTest {
         testScheduler.runCurrent()
         assertEquals(1, fakeRepository.loginCallCount)
 
-        completable.complete(Either.Left(AuthError.Login.InvalidCredentials))
+        completable.complete(Either.Left(AuthError.InvalidCredentials))
         testScheduler.advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isLoading)
-        assertEquals(AuthError.Login.InvalidCredentials, viewModel.uiState.value.authError)
+        assertEquals(AuthError.InvalidCredentials, viewModel.uiState.value.authError)
 
         completable = CompletableDeferred()
         fakeRepository.loginCompletable = completable
