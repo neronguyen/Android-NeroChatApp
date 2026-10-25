@@ -128,12 +128,10 @@ internal class ChatMessageRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteMessage(messageId: String): Either<ChatError.DeleteMessage, Unit> {
-        return withContext(defaultDispatcher) {
-            networkDataSource.deleteMessage(messageId)
-                .mapLeft { it.toDeleteMessageError() }
-                .map {
-                    chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.DELETED)
-                }
-        }
+        return networkDataSource.deleteMessage(messageId)
+            .mapLeft { it.toDeleteMessageError() }
+            .map {
+                chatDao.updateDeliveryStatus(messageId, MessageDeliveryStatus.DELETED)
+            }
     }
 }

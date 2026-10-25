@@ -5,13 +5,6 @@ import androidx.compose.ui.res.stringResource
 import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.ui.asUiText
 import io.github.neronguyen.chat.feature.chat.R
-import io.github.neronguyen.chat.feature.chat.presentation.conversation.ConversationActionError
-
-@Composable
-fun ConversationActionError.asUiText(): String = when (this) {
-    is ConversationActionError.Delete -> error.asUiText()
-    is ConversationActionError.Leave -> error.asUiText()
-}
 
 @Composable
 fun ChatError.asUiText(): String = when (this) {

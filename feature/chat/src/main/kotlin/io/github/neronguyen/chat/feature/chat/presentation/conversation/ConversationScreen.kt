@@ -1137,9 +1137,10 @@ private fun AddParticipantDialog(
                     }
                 }
 
-                if (state.searchError != null) {
+                val searchOrValidationError = state.validationError?.asUiText() ?: state.searchError?.asUiText()
+                if (searchOrValidationError != null) {
                     Text(
-                        text = state.searchError.asUiText(),
+                        text = searchOrValidationError,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )

@@ -13,9 +13,12 @@ import io.github.neronguyen.chat.core.data.repository.AuthRepository
 import io.github.neronguyen.chat.core.data.repository.ChatMessageRepository
 import io.github.neronguyen.chat.core.data.repository.ChatRoomRepository
 import io.github.neronguyen.chat.core.model.AuthState
+import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.feature.chat.presentation.newchat.toParticipantUiModel
+import io.github.neronguyenvn.nerochat.contract.validation.chat.ChatValidationError
+import io.github.neronguyenvn.nerochat.contract.validation.chat.ChatValidator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,10 +60,12 @@ class ConversationViewModel @AssistedInject constructor(
     private val limitFlow = MutableStateFlow(INITIAL_PAGE_SIZE)
     private val syncStatusFlow = MutableStateFlow(ConversationSyncStatus())
     private val addParticipantDialogFlow = MutableStateFlow<AddParticipantDialogState?>(null)
-    private val actionErrorFlow = MutableStateFlow<ConversationActionError?>(null)
+    private val actionErrorFlow = MutableStateFlow<ChatError?>(null)
     private val isLeavingFlow = MutableStateFlow(false)
     private val hasLeftFlow = MutableStateFlow(false)
     private val isBannerDismissedFlow = MutableStateFlow(false)
+
+    private var currentUser: User? = null
 
     private val _uiState = MutableStateFlow(
         ConversationUiState(
@@ -72,6 +77,7 @@ class ConversationViewModel @AssistedInject constructor(
     val uiState: StateFlow<ConversationUiState> = _uiState.asStateFlow()
 
     init {
+        observeCurrentUser()
         observeConversation()
         syncRoomAndRecentMessages()
     }
@@ -91,6 +97,14 @@ class ConversationViewModel @AssistedInject constructor(
             ConversationUiEvent.SearchParticipantByEmail -> searchParticipantByEmail()
             ConversationUiEvent.ClearAddParticipantSearch -> clearAddParticipantSearch()
             ConversationUiEvent.ConfirmAddParticipant -> confirmAddParticipant()
+        }
+    }
+
+    private fun observeCurrentUser() {
+        viewModelScope.launch {
+            authRepository.getAuthState().collect { state ->
+                currentUser = (state as? AuthState.Authenticated)?.user
+            }
         }
     }
 
@@ -215,7 +229,7 @@ class ConversationViewModel @AssistedInject constructor(
         viewModelScope.launch {
             chatMessageRepository.deleteMessage(messageId)
                 .onLeft { error ->
-                    actionErrorFlow.value = ConversationActionError.Delete(error)
+                    actionErrorFlow.value = error
                 }
         }
     }
@@ -252,7 +266,7 @@ class ConversationViewModel @AssistedInject constructor(
             chatRoomRepository.leaveChatRoom(roomId)
                 .onLeft { error ->
                     isLeavingFlow.value = false
-                    actionErrorFlow.value = ConversationActionError.Leave(error)
+                    actionErrorFlow.value = error
                 }
                 .onRight {
                     isLeavingFlow.value = false
@@ -272,10 +286,27 @@ class ConversationViewModel @AssistedInject constructor(
 
     private fun searchParticipantByEmail() {
         val email = addParticipantEmailState.text.toString().trim()
-        if (email.isEmpty()) return
+        val validationError = ChatValidator.validateSearchEmail(
+            email = email,
+            currentUserEmail = currentUser?.email,
+        )
+        if (validationError != null) {
+            addParticipantDialogFlow.update {
+                it?.copy(
+                    validationError = validationError,
+                    searchError = null,
+                    searchedParticipant = null,
+                )
+            }
+            return
+        }
 
         addParticipantDialogFlow.update {
-            it?.copy(isSearching = true, searchError = null)
+            it?.copy(
+                isSearching = true,
+                validationError = null,
+                searchError = null,
+            )
         }
 
         viewModelScope.launch {
@@ -285,17 +316,34 @@ class ConversationViewModel @AssistedInject constructor(
                         it?.copy(
                             isSearching = false,
                             searchError = error,
-                            searchedParticipant = null
+                            searchedParticipant = null,
                         )
                     }
                 }
                 .onRight { participant ->
-                    addParticipantDialogFlow.update {
-                        it?.copy(
-                            isSearching = false,
-                            searchError = null,
-                            searchedParticipant = participant.toParticipantUiModel(),
-                        )
+                    val latestSelf = currentUser
+                    val isSelf = latestSelf != null && (
+                        participant.userId == latestSelf.id ||
+                            participant.email.equals(latestSelf.email, ignoreCase = true)
+                    )
+                    if (isSelf) {
+                        addParticipantDialogFlow.update {
+                            it?.copy(
+                                isSearching = false,
+                                validationError = ChatValidationError.SelfParticipantNotAllowed,
+                                searchError = null,
+                                searchedParticipant = null,
+                            )
+                        }
+                    } else {
+                        addParticipantDialogFlow.update {
+                            it?.copy(
+                                isSearching = false,
+                                searchError = null,
+                                validationError = null,
+                                searchedParticipant = participant.toParticipantUiModel(),
+                            )
+                        }
                     }
                 }
         }
@@ -304,7 +352,11 @@ class ConversationViewModel @AssistedInject constructor(
     private fun clearAddParticipantSearch() {
         addParticipantEmailState.clearText()
         addParticipantDialogFlow.update {
-            it?.copy(searchedParticipant = null, searchError = null)
+            it?.copy(
+                searchedParticipant = null,
+                searchError = null,
+                validationError = null,
+            )
         }
     }
 

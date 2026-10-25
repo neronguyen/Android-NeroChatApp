@@ -112,37 +112,31 @@ internal class ChatRoomRepositoryImpl @Inject constructor(
     }
 
     override suspend fun syncChatRoom(roomId: String): Either<ChatError.SyncRoom, Unit> {
-        return withContext(defaultDispatcher) {
-            networkDataSource.getChatRoom(roomId)
-                .mapLeft { it.toSyncRoomError() }
-                .map { dto ->
-                    saveChatRoomDto(dto)
-                }
-        }
+        return networkDataSource.getChatRoom(roomId)
+            .mapLeft { it.toSyncRoomError() }
+            .map { dto ->
+                saveChatRoomDto(dto)
+            }
     }
 
     override suspend fun addParticipantsToGroup(
         roomId: String,
         userIds: List<String>
     ): Either<ChatError.AddParticipants, ChatRoom> {
-        return withContext(defaultDispatcher) {
-            networkDataSource.addParticipantsToGroup(roomId, userIds)
-                .mapLeft { it.toAddParticipantsError() }
-                .map { dto ->
-                    saveChatRoomDto(dto)
-                    dto.toDomain()
-                }
-        }
+        return networkDataSource.addParticipantsToGroup(roomId, userIds)
+            .mapLeft { it.toAddParticipantsError() }
+            .map { dto ->
+                saveChatRoomDto(dto)
+                dto.toDomain()
+            }
     }
 
     override suspend fun leaveChatRoom(roomId: String): Either<ChatError.LeaveRoom, Unit> {
-        return withContext(defaultDispatcher) {
-            networkDataSource.leaveChatRoom(roomId)
-                .mapLeft { it.toLeaveRoomError() }
-                .map {
-                    chatDao.removeRoomAndData(roomId)
-                }
-        }
+        return networkDataSource.leaveChatRoom(roomId)
+            .mapLeft { it.toLeaveRoomError() }
+            .map {
+                chatDao.removeRoomAndData(roomId)
+            }
     }
 
     private suspend fun saveChatRoomDto(dto: ChatRoomDto) {

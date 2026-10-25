@@ -17,6 +17,7 @@ import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.AuthError
 import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
+import io.github.neronguyenvn.nerochat.contract.validation.chat.ChatValidationError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -231,7 +232,41 @@ class ConversationViewModelTest {
 
         assertFalse(viewModel.uiState.value.hasLeftRoom)
         assertFalse(viewModel.uiState.value.isLeavingRoom)
-        assertEquals(ConversationActionError.Leave(leaveError), viewModel.uiState.value.actionError)
+        assertEquals(leaveError, viewModel.uiState.value.actionError)
+    }
+
+    @Test
+    fun `searchParticipantByEmail with invalid email sets validationError without network call`() = runTest {
+        testScheduler.advanceUntilIdle()
+
+        viewModel.onEvent(ConversationUiEvent.OpenAddParticipantDialog)
+        testScheduler.advanceUntilIdle()
+
+        viewModel.addParticipantEmailState.setTextAndPlaceCursorAtEnd("not-an-email")
+        viewModel.onEvent(ConversationUiEvent.SearchParticipantByEmail)
+
+        testScheduler.advanceUntilIdle()
+
+        val dialog = viewModel.uiState.value.addParticipantDialogState
+        assertEquals(ChatValidationError.InvalidSearchEmail, dialog?.validationError)
+        assertNull(dialog?.searchedParticipant)
+    }
+
+    @Test
+    fun `searchParticipantByEmail with self email sets SelfParticipantNotAllowed`() = runTest {
+        testScheduler.advanceUntilIdle()
+
+        viewModel.onEvent(ConversationUiEvent.OpenAddParticipantDialog)
+        testScheduler.advanceUntilIdle()
+
+        viewModel.addParticipantEmailState.setTextAndPlaceCursorAtEnd(currentUser.email)
+        viewModel.onEvent(ConversationUiEvent.SearchParticipantByEmail)
+
+        testScheduler.advanceUntilIdle()
+
+        val dialog = viewModel.uiState.value.addParticipantDialogState
+        assertEquals(ChatValidationError.SelfParticipantNotAllowed, dialog?.validationError)
+        assertNull(dialog?.searchedParticipant)
     }
 
     @Test

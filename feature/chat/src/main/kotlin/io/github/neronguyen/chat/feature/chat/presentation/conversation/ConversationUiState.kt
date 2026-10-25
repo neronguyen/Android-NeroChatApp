@@ -7,12 +7,7 @@ import io.github.neronguyen.chat.core.model.RealtimeConnectionState
 import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.feature.chat.presentation.newchat.ParticipantUiModel
-
-@Immutable
-sealed interface ConversationActionError {
-    data class Delete(val error: ChatError.DeleteMessage) : ConversationActionError
-    data class Leave(val error: ChatError.LeaveRoom) : ConversationActionError
-}
+import io.github.neronguyenvn.nerochat.contract.validation.chat.ChatValidationError
 
 @Immutable
 data class ConversationUiState(
@@ -30,7 +25,7 @@ data class ConversationUiState(
     val isLoadingOlder: Boolean = false,
     val hasMoreOlderMessages: Boolean = true,
     val loadOlderError: DataError? = null,
-    val actionError: ConversationActionError? = null,
+    val actionError: ChatError? = null,
     val isLeavingRoom: Boolean = false,
     val hasLeftRoom: Boolean = false,
     val isBannerDismissed: Boolean = false,
@@ -81,6 +76,7 @@ data class AddParticipantDialogState(
     val isSearching: Boolean = false,
     val isSubmitting: Boolean = false,
     val searchedParticipant: ParticipantUiModel? = null,
+    val validationError: ChatValidationError.SearchParticipant? = null,
     val searchError: ChatError.FindParticipant? = null,
     val submitError: ChatError.AddParticipants? = null,
 )
