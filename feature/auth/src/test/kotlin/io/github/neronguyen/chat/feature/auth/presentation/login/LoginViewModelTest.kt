@@ -7,7 +7,7 @@ import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.AuthError
 import io.github.neronguyen.chat.core.model.error.DataError
-import io.github.neronguyen.chat.feature.auth.presentation.util.AuthValidationError
+import io.github.neronguyenvn.nerochat.contract.validation.auth.AuthValidationError
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -58,6 +58,18 @@ class LoginViewModelTest {
 
         val state = viewModel.uiState.value
         assertEquals(AuthValidationError.EmptyEmail, state.validationError)
+        assertFalse(state.isLoading)
+        assertEquals(0, fakeRepository.loginCallCount)
+    }
+
+    @Test
+    fun `when invalid email submitted, InvalidEmail validation error is shown`() {
+        viewModel.emailState.setTextAndPlaceCursorAtEnd("invalid-email")
+        viewModel.passwordState.setTextAndPlaceCursorAtEnd("password123")
+        viewModel.onEvent(LoginUiEvent.Login)
+
+        val state = viewModel.uiState.value
+        assertEquals(AuthValidationError.InvalidEmail, state.validationError)
         assertFalse(state.isLoading)
         assertEquals(0, fakeRepository.loginCallCount)
     }

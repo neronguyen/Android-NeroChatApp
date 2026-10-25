@@ -11,6 +11,8 @@ import io.github.neronguyen.chat.core.data.repository.AuthRepository
 import io.github.neronguyen.chat.core.data.repository.ChatRoomRepository
 import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.User
+import io.github.neronguyenvn.nerochat.contract.validation.chat.ChatValidationError
+import io.github.neronguyenvn.nerochat.contract.validation.chat.ChatValidator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -94,7 +96,7 @@ class NewChatViewModel @Inject constructor(
                     _uiState.update { state ->
                         val clearedValidation = if (
                             text.isNotBlank() &&
-                            state.validationError == NewChatValidationError.EmptyFirstMessage
+                            state.validationError == ChatValidationError.EmptyFirstMessage
                         ) {
                             null
                         } else {
@@ -132,33 +134,16 @@ class NewChatViewModel @Inject constructor(
         if (_uiState.value.isSearching) return
 
         val email = emailSearchState.text.toString().trim()
-        if (email.isEmpty()) {
+        val validationError = ChatValidator.validateSearchEmail(
+            email = email,
+            currentUserEmail = currentUser?.email,
+        )
+        if (validationError != null) {
             _uiState.update {
                 it.copy(
-                    validationError = NewChatValidationError.EmptySearchEmail,
+                    validationError = validationError,
                     searchError = null,
-                )
-            }
-            return
-        }
-
-        if (!isValidEmail(email)) {
-            _uiState.update {
-                it.copy(
-                    validationError = NewChatValidationError.InvalidSearchEmail,
-                    searchError = null,
-                )
-            }
-            return
-        }
-
-        val selfUser = currentUser
-        if (selfUser != null && selfUser.email.equals(email, ignoreCase = true)) {
-            _uiState.update {
-                it.copy(
-                    validationError = NewChatValidationError.SelfParticipantNotAllowed,
-                    searchError = null,
-                    searchedParticipant = null,
+                    searchedParticipant = if (validationError is ChatValidationError.SelfParticipantNotAllowed) null else it.searchedParticipant,
                 )
             }
             return
@@ -194,7 +179,7 @@ class NewChatViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 isSearching = false,
-                                validationError = NewChatValidationError.SelfParticipantNotAllowed,
+                                validationError = ChatValidationError.SelfParticipantNotAllowed,
                                 searchedParticipant = null,
                             )
                         }
@@ -221,12 +206,10 @@ class NewChatViewModel @Inject constructor(
     private fun clearSearchInput() {
         emailSearchState.clearText()
         _uiState.update { state ->
-            val clearedValidation = when (state.validationError) {
-                NewChatValidationError.EmptySearchEmail,
-                NewChatValidationError.InvalidSearchEmail,
-                NewChatValidationError.SelfParticipantNotAllowed -> null
-
-                else -> state.validationError
+            val clearedValidation = if (state.validationError is ChatValidationError.SearchParticipant) {
+                null
+            } else {
+                state.validationError
             }
             state.copy(
                 validationError = clearedValidation,
@@ -316,18 +299,17 @@ class NewChatViewModel @Inject constructor(
 
     private fun submitDirectChat(snapshot: NewChatUiState) {
         val recipient = snapshot.selectedDirectParticipant
-        if (recipient == null) {
-            _uiState.update {
-                it.copy(validationError = NewChatValidationError.MissingDirectRecipient)
-            }
-            return
-        }
-
         val messageText = firstMessageState.text.toString().trim()
             .ifEmpty { snapshot.firstMessage.trim() }
-        if (messageText.isEmpty()) {
+
+        val validationError = ChatValidator.validateDirectRoom(
+            targetUserId = recipient?.userId,
+            message = messageText,
+        ).firstOrNull()
+
+        if (validationError != null) {
             _uiState.update {
-                it.copy(validationError = NewChatValidationError.EmptyFirstMessage)
+                it.copy(validationError = validationError)
             }
             return
         }
@@ -342,7 +324,7 @@ class NewChatViewModel @Inject constructor(
 
         viewModelScope.launch {
             chatRoomRepository.createDirectChatRoom(
-                targetUserId = recipient.userId,
+                targetUserId = recipient!!.userId,
                 message = messageText,
             )
                 .onLeft { networkError ->
@@ -367,9 +349,13 @@ class NewChatViewModel @Inject constructor(
 
     private fun submitGroupChat(snapshot: NewChatUiState) {
         val participants = snapshot.selectedGroupParticipants
-        if (participants.isEmpty()) {
+        val validationError = ChatValidator.validateGroupRoom(
+            participantIds = participants.map { it.userId },
+        ).firstOrNull()
+
+        if (validationError != null) {
             _uiState.update {
-                it.copy(validationError = NewChatValidationError.NoGroupParticipantsSelected)
+                it.copy(validationError = validationError)
             }
             return
         }
@@ -413,14 +399,5 @@ class NewChatViewModel @Inject constructor(
 
     private fun dismissCreateError() {
         _uiState.update { it.copy(createError = null) }
-    }
-
-    private fun isValidEmail(email: String): Boolean {
-        val atIndex = email.indexOf('@')
-        if (atIndex <= 0 || atIndex != email.lastIndexOf('@')) return false
-        val domain = email.substring(atIndex + 1)
-        return domain.contains('.') && !domain.startsWith('.') && !domain.endsWith('.') && !email.contains(
-            ' '
-        )
     }
 }

@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.neronguyen.chat.core.data.repository.AuthRepository
-import io.github.neronguyen.chat.feature.auth.presentation.util.AuthValidationError
+import io.github.neronguyenvn.nerochat.contract.validation.auth.AuthValidator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,21 +40,15 @@ class LoginViewModel @Inject constructor(
         val emailText = emailState.text.toString().trim()
         val passwordText = passwordState.text.toString()
 
-        // TODO: Validate email and password with proper use cases and error handling
-        if (emailText.isBlank()) {
-            _uiState.update {
-                it.copy(
-                    validationError = AuthValidationError.EmptyEmail,
-                    authError = null,
-                )
-            }
-            return
-        }
+        val validationError = AuthValidator.validateLogin(
+            email = emailText,
+            password = passwordText,
+        ).firstOrNull()
 
-        if (passwordText.isBlank()) {
+        if (validationError != null) {
             _uiState.update {
                 it.copy(
-                    validationError = AuthValidationError.EmptyPassword,
+                    validationError = validationError,
                     authError = null,
                 )
             }

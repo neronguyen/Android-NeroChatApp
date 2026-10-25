@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.neronguyen.chat.core.data.repository.AuthRepository
-import io.github.neronguyen.chat.feature.auth.presentation.util.AuthValidationError
+import io.github.neronguyenvn.nerochat.contract.validation.auth.AuthValidator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,28 +42,16 @@ class RegisterViewModel @Inject constructor(
         val displayNameText = displayNameState.text.toString().trim()
         val passwordText = passwordState.text.toString()
 
-        if (emailText.isBlank()) {
+        val validationError = AuthValidator.validateRegister(
+            email = emailText,
+            displayName = displayNameText,
+            password = passwordText,
+        ).firstOrNull()
+
+        if (validationError != null) {
             _uiState.update {
                 it.copy(
-                    validationError = AuthValidationError.EmptyEmail,
-                    authError = null,
-                )
-            }
-            return
-        }
-        if (displayNameText.isBlank()) {
-            _uiState.update {
-                it.copy(
-                    validationError = AuthValidationError.EmptyDisplayName,
-                    authError = null,
-                )
-            }
-            return
-        }
-        if (passwordText.isBlank()) {
-            _uiState.update {
-                it.copy(
-                    validationError = AuthValidationError.EmptyPassword,
+                    validationError = validationError,
                     authError = null,
                 )
             }

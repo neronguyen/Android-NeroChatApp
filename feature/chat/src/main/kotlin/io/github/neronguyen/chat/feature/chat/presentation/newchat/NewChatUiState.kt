@@ -9,31 +9,25 @@ import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.feature.chat.R
 import io.github.neronguyen.chat.feature.chat.presentation.list.FALLBACK_UNKNOWN_PARTICIPANT
 import io.github.neronguyen.chat.feature.chat.presentation.list.deriveInitials
+import io.github.neronguyenvn.nerochat.contract.validation.chat.ChatValidationError
 
 enum class NewChatMode {
     DIRECT,
     GROUP,
 }
 
-enum class NewChatValidationError {
-    EmptySearchEmail,
-    InvalidSearchEmail,
-    SelfParticipantNotAllowed,
-    MissingDirectRecipient,
-    EmptyFirstMessage,
-    NoGroupParticipantsSelected,
-}
-
 @Composable
-internal fun NewChatValidationError.asUiText(): String {
-    return when (this) {
-        NewChatValidationError.EmptySearchEmail -> stringResource(R.string.new_chat_error_empty_email)
-        NewChatValidationError.InvalidSearchEmail -> stringResource(R.string.new_chat_error_invalid_email)
-        NewChatValidationError.SelfParticipantNotAllowed -> stringResource(R.string.new_chat_error_self_participant)
-        NewChatValidationError.MissingDirectRecipient -> stringResource(R.string.new_chat_error_missing_direct_recipient)
-        NewChatValidationError.EmptyFirstMessage -> stringResource(R.string.new_chat_error_empty_first_message)
-        NewChatValidationError.NoGroupParticipantsSelected -> stringResource(R.string.new_chat_error_no_group_participants)
-    }
+internal fun ChatValidationError.asUiText(): String = when (this) {
+    ChatValidationError.EmptySearchEmail -> stringResource(R.string.new_chat_error_empty_email)
+    ChatValidationError.InvalidSearchEmail -> stringResource(R.string.new_chat_error_invalid_email)
+    ChatValidationError.SelfParticipantNotAllowed -> stringResource(R.string.new_chat_error_self_participant)
+    ChatValidationError.MissingDirectRecipient,
+    ChatValidationError.InvalidTargetUserId -> stringResource(R.string.new_chat_error_missing_direct_recipient)
+    ChatValidationError.EmptyFirstMessage -> stringResource(R.string.new_chat_error_empty_first_message)
+    ChatValidationError.TooFewGroupParticipants,
+    ChatValidationError.InvalidGroupParticipantId -> stringResource(R.string.new_chat_error_no_group_participants)
+    ChatValidationError.EmptyParticipantIds -> stringResource(R.string.new_chat_error_empty_participant_ids)
+    ChatValidationError.InvalidParticipantId -> stringResource(R.string.new_chat_error_invalid_participant_id)
 }
 
 @Immutable
@@ -66,7 +60,7 @@ data class NewChatUiState(
     val isSearching: Boolean = false,
     val searchedParticipant: ParticipantUiModel? = null,
     val searchError: ChatError.FindParticipant? = null,
-    val validationError: NewChatValidationError? = null,
+    val validationError: ChatValidationError? = null,
     val selectedDirectParticipant: ParticipantUiModel? = null,
     val selectedGroupParticipants: List<ParticipantUiModel> = emptyList(),
     val firstMessage: String = "",

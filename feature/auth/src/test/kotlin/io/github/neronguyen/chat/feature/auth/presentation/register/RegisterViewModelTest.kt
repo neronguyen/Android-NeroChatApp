@@ -7,7 +7,7 @@ import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.AuthError
 import io.github.neronguyen.chat.core.model.error.DataError
-import io.github.neronguyen.chat.feature.auth.presentation.util.AuthValidationError
+import io.github.neronguyenvn.nerochat.contract.validation.auth.AuthValidationError
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -154,6 +154,19 @@ class RegisterViewModelTest {
         assertEquals(0, fakeRepository.registerCallCount)
         assertFalse(viewModel.uiState.value.isLoading)
         assertEquals(AuthValidationError.EmptyEmail, viewModel.uiState.value.validationError)
+    }
+
+    @Test
+    fun `short or non-alphanumeric password sets InvalidPassword validation error`() = runTest {
+        viewModel.emailState.setTextAndPlaceCursorAtEnd("test@example.com")
+        viewModel.displayNameState.setTextAndPlaceCursorAtEnd("Test User")
+        viewModel.passwordState.setTextAndPlaceCursorAtEnd("short")
+
+        viewModel.onEvent(RegisterUiEvent.Register)
+
+        assertEquals(0, fakeRepository.registerCallCount)
+        assertFalse(viewModel.uiState.value.isLoading)
+        assertEquals(AuthValidationError.InvalidPassword, viewModel.uiState.value.validationError)
     }
 
     @Test

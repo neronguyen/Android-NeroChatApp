@@ -52,7 +52,9 @@
     <string name="new_chat_error_self_participant">You cannot add yourself to a conversation.</string>
     <string name="new_chat_error_missing_direct_recipient">Select a recipient to start a conversation.</string>
     <string name="new_chat_error_empty_first_message">Write a first message to start this chat.</string>
-    <string name="new_chat_error_no_group_participants">Select at least one participant to create a group.</string>
+    <string name="new_chat_error_no_group_participants">Select at least two participants to create a group.</string>
+    <string name="new_chat_error_empty_participant_ids">Participant list must not be empty.</string>
+    <string name="new_chat_error_invalid_participant_id">Participant ID must be a valid UUID.</string>
     <string name="conversation_group_members_count">%1$d members</string>
     <string name="conversation_direct_chat_subtitle">Direct chat</string>
     <string name="conversation_connecting_banner">Connecting…</string>

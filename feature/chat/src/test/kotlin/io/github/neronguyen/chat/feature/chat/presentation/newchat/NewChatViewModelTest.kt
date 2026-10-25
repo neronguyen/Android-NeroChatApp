@@ -11,6 +11,7 @@ import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.AuthError
 import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
+import io.github.neronguyenvn.nerochat.contract.validation.chat.ChatValidationError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -36,7 +37,7 @@ class NewChatViewModelTest {
     private lateinit var viewModel: NewChatViewModel
 
     private val currentUser = User(
-        id = "user-me",
+        id = "00000000-0000-0000-0000-000000000001",
         email = "me@example.com",
         displayName = "Me",
         isEmailVerified = true,
@@ -47,12 +48,12 @@ class NewChatViewModelTest {
         displayName = currentUser.displayName,
     )
     private val elenaParticipant = ChatParticipant(
-        userId = "user-elena",
+        userId = "00000000-0000-0000-0000-000000000002",
         email = "elena@example.com",
         displayName = "Elena Rostova",
     )
     private val marcusParticipant = ChatParticipant(
-        userId = "user-marcus",
+        userId = "00000000-0000-0000-0000-000000000003",
         email = "marcus@example.com",
         displayName = "Marcus Vance",
     )
@@ -82,7 +83,7 @@ class NewChatViewModelTest {
 
             viewModel.onEvent(NewChatUiEvent.SearchByEmail)
             assertEquals(
-                NewChatValidationError.EmptySearchEmail,
+                ChatValidationError.EmptySearchEmail,
                 viewModel.uiState.value.validationError,
             )
             assertEquals(0, fakeChatRoomRepository.searchEmails.size)
@@ -90,7 +91,7 @@ class NewChatViewModelTest {
             viewModel.onEmailSearchQueryChanged("invalid-email")
             viewModel.onEvent(NewChatUiEvent.SearchByEmail)
             assertEquals(
-                NewChatValidationError.InvalidSearchEmail,
+                ChatValidationError.InvalidSearchEmail,
                 viewModel.uiState.value.validationError,
             )
             assertEquals(0, fakeChatRoomRepository.searchEmails.size)
@@ -104,7 +105,7 @@ class NewChatViewModelTest {
         viewModel.onEvent(NewChatUiEvent.SearchByEmail)
 
         assertEquals(
-            NewChatValidationError.SelfParticipantNotAllowed,
+            ChatValidationError.SelfParticipantNotAllowed,
             viewModel.uiState.value.validationError,
         )
         assertNull(viewModel.uiState.value.searchedParticipant)
@@ -123,8 +124,8 @@ class NewChatViewModelTest {
             testScheduler.advanceUntilIdle()
 
             val stateAfterSearch = viewModel.uiState.value
-            assertEquals("user-elena", stateAfterSearch.searchedParticipant?.userId)
-            assertEquals("user-elena", stateAfterSearch.selectedDirectParticipant?.userId)
+            assertEquals(elenaParticipant.userId, stateAfterSearch.searchedParticipant?.userId)
+            assertEquals(elenaParticipant.userId, stateAfterSearch.selectedDirectParticipant?.userId)
             assertTrue(stateAfterSearch.isSearchedParticipantSelected)
             assertFalse(stateAfterSearch.canSubmitDirect)
 
@@ -135,7 +136,7 @@ class NewChatViewModelTest {
 
             // Toggle to re-select
             viewModel.onEvent(NewChatUiEvent.ToggleSearchedParticipant)
-            assertEquals("user-elena", viewModel.uiState.value.selectedDirectParticipant?.userId)
+            assertEquals(elenaParticipant.userId, viewModel.uiState.value.selectedDirectParticipant?.userId)
             assertTrue(viewModel.uiState.value.isSearchedParticipantSelected)
 
             // Enter first message and submit
@@ -146,7 +147,7 @@ class NewChatViewModelTest {
             viewModel.onEvent(NewChatUiEvent.SubmitChat)
             testScheduler.advanceUntilIdle()
 
-            assertEquals("user-elena", fakeChatRoomRepository.lastDirectTargetUserId)
+            assertEquals(elenaParticipant.userId, fakeChatRoomRepository.lastDirectTargetUserId)
             assertEquals("Hello Elena!", fakeChatRoomRepository.lastDirectMessage)
             assertEquals("room-direct-1", viewModel.uiState.value.createdRoomId)
 
@@ -171,7 +172,7 @@ class NewChatViewModelTest {
             viewModel.onEvent(NewChatUiEvent.SearchByEmail)
             testScheduler.advanceUntilIdle()
 
-            assertEquals("user-elena", viewModel.uiState.value.searchedParticipant?.userId)
+            assertEquals(elenaParticipant.userId, viewModel.uiState.value.searchedParticipant?.userId)
             assertFalse(viewModel.uiState.value.isSearchedParticipantSelected)
             assertTrue(viewModel.uiState.value.selectedGroupParticipants.isEmpty())
 
@@ -179,7 +180,7 @@ class NewChatViewModelTest {
             viewModel.onEvent(NewChatUiEvent.ToggleSearchedParticipant)
             assertTrue(viewModel.uiState.value.isSearchedParticipantSelected)
             assertEquals(
-                listOf("user-elena"),
+                listOf(elenaParticipant.userId),
                 viewModel.uiState.value.selectedGroupParticipants.map { it.userId },
             )
 
@@ -194,21 +195,29 @@ class NewChatViewModelTest {
             viewModel.onEvent(NewChatUiEvent.SearchByEmail)
             testScheduler.advanceUntilIdle()
 
-            assertEquals("user-marcus", viewModel.uiState.value.searchedParticipant?.userId)
+            assertEquals(marcusParticipant.userId, viewModel.uiState.value.searchedParticipant?.userId)
             assertFalse(viewModel.uiState.value.isSearchedParticipantSelected)
 
             viewModel.onEvent(NewChatUiEvent.ToggleSearchedParticipant)
             assertTrue(viewModel.uiState.value.isSearchedParticipantSelected)
             assertEquals(
-                listOf("user-elena", "user-marcus"),
+                listOf(elenaParticipant.userId, marcusParticipant.userId),
                 viewModel.uiState.value.selectedGroupParticipants.map { it.userId },
             )
 
             // Remove Marcus via chip removal -> also updates isSearchedParticipantSelected to false
-            viewModel.onEvent(NewChatUiEvent.RemoveGroupParticipant("user-marcus"))
+            viewModel.onEvent(NewChatUiEvent.RemoveGroupParticipant(marcusParticipant.userId))
             assertFalse(viewModel.uiState.value.isSearchedParticipantSelected)
             assertEquals(
-                listOf("user-elena"),
+                listOf(elenaParticipant.userId),
+                viewModel.uiState.value.selectedGroupParticipants.map { it.userId },
+            )
+
+            // Re-select Marcus so we have >= 2 participants for valid group creation
+            viewModel.onEvent(NewChatUiEvent.ToggleSearchedParticipant)
+            assertTrue(viewModel.uiState.value.isSearchedParticipantSelected)
+            assertEquals(
+                listOf(elenaParticipant.userId, marcusParticipant.userId),
                 viewModel.uiState.value.selectedGroupParticipants.map { it.userId },
             )
 
@@ -216,7 +225,7 @@ class NewChatViewModelTest {
             viewModel.onEvent(NewChatUiEvent.ClearSearchResult)
             assertNull(viewModel.uiState.value.searchedParticipant)
             assertEquals(
-                listOf("user-elena"),
+                listOf(elenaParticipant.userId, marcusParticipant.userId),
                 viewModel.uiState.value.selectedGroupParticipants.map { it.userId },
             )
 
@@ -228,7 +237,7 @@ class NewChatViewModelTest {
             viewModel.onEvent(NewChatUiEvent.SubmitChat)
             testScheduler.advanceUntilIdle()
 
-            assertEquals(listOf("user-elena"), fakeChatRoomRepository.lastGroupParticipantIds)
+            assertEquals(listOf(elenaParticipant.userId, marcusParticipant.userId), fakeChatRoomRepository.lastGroupParticipantIds)
             assertEquals("Core Team", fakeChatRoomRepository.lastGroupName)
             assertEquals("room-group-1", viewModel.uiState.value.createdRoomId)
         }
@@ -264,6 +273,58 @@ class NewChatViewModelTest {
 
         assertEquals(ChatError.Data(DataError.Connectivity.NoInternet), viewModel.uiState.value.createError)
         assertNull(viewModel.uiState.value.createdRoomId)
+    }
+
+    @Test
+    fun `submitting direct chat with missing recipient or empty first message sets validation error`() =
+        runTest {
+            testScheduler.advanceUntilIdle()
+
+            // 1. Missing recipient
+            viewModel.onEvent(NewChatUiEvent.SubmitChat)
+            assertEquals(
+                ChatValidationError.MissingDirectRecipient,
+                viewModel.uiState.value.validationError,
+            )
+
+            // Select recipient
+            fakeChatRoomRepository.participantsByEmail["elena@example.com"] =
+                Either.Right(elenaParticipant)
+            viewModel.onEmailSearchQueryChanged("elena@example.com")
+            viewModel.onEvent(NewChatUiEvent.SearchByEmail)
+            testScheduler.advanceUntilIdle()
+
+            // 2. Empty first message
+            viewModel.onEvent(NewChatUiEvent.SubmitChat)
+            assertEquals(
+                ChatValidationError.EmptyFirstMessage,
+                viewModel.uiState.value.validationError,
+            )
+            assertNull(fakeChatRoomRepository.lastDirectMessage)
+        }
+
+    @Test
+    fun `submitting group with fewer than 2 participants sets TooFewGroupParticipants`() = runTest {
+        testScheduler.advanceUntilIdle()
+        viewModel.onEvent(NewChatUiEvent.SelectMode(NewChatMode.GROUP))
+
+        fakeChatRoomRepository.participantsByEmail["elena@example.com"] =
+            Either.Right(elenaParticipant)
+        viewModel.onEmailSearchQueryChanged("elena@example.com")
+        viewModel.onEvent(NewChatUiEvent.SearchByEmail)
+        testScheduler.advanceUntilIdle()
+
+        viewModel.onEvent(NewChatUiEvent.ToggleSearchedParticipant)
+        assertEquals(1, viewModel.uiState.value.selectedGroupParticipants.size)
+
+        viewModel.onEvent(NewChatUiEvent.SubmitChat)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(
+            ChatValidationError.TooFewGroupParticipants,
+            viewModel.uiState.value.validationError,
+        )
+        assertNull(fakeChatRoomRepository.lastGroupParticipantIds)
     }
 
     private inner class FakeNewChatRoomRepository : ChatRoomRepository {

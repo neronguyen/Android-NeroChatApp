@@ -44,6 +44,9 @@ dependencies {
     // Arrow
     implementation(libs.arrow.core)
 
+    // Contract Validation
+    implementation(libs.validation.chat)
+
     // Coil
     implementation(libs.coil.kt.compose)
 
