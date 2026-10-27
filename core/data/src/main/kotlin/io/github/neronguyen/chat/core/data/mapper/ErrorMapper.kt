@@ -6,6 +6,7 @@ import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.util.NetworkError
 import io.github.neronguyenvn.nerochat.contract.auth.error.AuthServerError
 import io.github.neronguyenvn.nerochat.contract.chat.error.ChatServerError
+import io.github.neronguyenvn.nerochat.contract.error.CommonServerError
 import io.github.neronguyenvn.nerochat.contract.error.ServerError
 import kotlin.time.Duration.Companion.seconds
 
@@ -25,7 +26,15 @@ internal fun NetworkError.Http.toDataError(): DataError = when {
     status == 401 -> DataError.Remote.Unauthorized
     status == 403 -> DataError.Remote.Forbidden
     status in 500..599 -> DataError.Remote.Unavailable
-    else -> DataError.Unexpected.UnknownCode(status, rawCode)
+    else -> DataError.Unexpected.UnknownCode(status)
+}
+
+internal fun NetworkError.Common.toDataError(): DataError = when (error) {
+    CommonServerError.Unauthorized -> DataError.Remote.Unauthorized
+    CommonServerError.Forbidden -> DataError.Remote.Forbidden
+    CommonServerError.BadRequest,
+    CommonServerError.ValidationFailed -> DataError.Unexpected.RequestRejected
+    CommonServerError.InternalServerError -> DataError.Remote.Unavailable
 }
 
 /** Generic splitter: callers only describe the endpoint-specific server branch. */
@@ -34,6 +43,7 @@ internal inline fun <S : ServerError, D> NetworkError<S>.toDomain(
     onServer: (NetworkError.Server<S>) -> D,
 ): D = when (this) {
     is NetworkError.Server -> onServer(this)
+    is NetworkError.Common -> wrap(toDataError())
     is NetworkError.Transport -> wrap(toDataError())
     is NetworkError.Http -> wrap(toDataError())
 }
@@ -69,6 +79,7 @@ internal fun NetworkError<AuthServerError.RefreshToken>.toDataError(): DataError
         AuthServerError.RateLimitExceeded -> rateLimited()
         AuthServerError.ValidationFailed -> DataError.Unexpected.RequestRejected
     }
+    is NetworkError.Common -> toDataError()
     is NetworkError.Transport -> toDataError()
     is NetworkError.Http -> toDataError()
 }
@@ -79,6 +90,7 @@ internal fun NetworkError<AuthServerError.Logout>.toDataError(): DataError = whe
         AuthServerError.InvalidToken -> DataError.Remote.Unauthorized
         AuthServerError.ValidationFailed -> DataError.Unexpected.RequestRejected
     }
+    is NetworkError.Common -> toDataError()
     is NetworkError.Transport -> toDataError()
     is NetworkError.Http -> toDataError()
 }
@@ -89,9 +101,11 @@ internal fun NetworkError<ChatServerError.GetRooms>.toDataError(): DataError = w
     is NetworkError.Server -> when (this.error) {
         ChatServerError.Unauthorized -> DataError.Remote.Unauthorized
     }
+    is NetworkError.Common -> toDataError()
     is NetworkError.Transport -> toDataError()
     is NetworkError.Http -> toDataError()
 }
+
 @JvmName("toGetMessagesDataError")
 internal fun NetworkError<ChatServerError.GetMessages>.toDataError(): DataError = when (this) {
     is NetworkError.Server -> when (this.error) {
@@ -99,9 +113,11 @@ internal fun NetworkError<ChatServerError.GetMessages>.toDataError(): DataError 
         ChatServerError.Unauthorized -> DataError.Remote.Unauthorized
         ChatServerError.BadRequest -> DataError.Unexpected.RequestRejected
     }
+    is NetworkError.Common -> toDataError()
     is NetworkError.Transport -> toDataError()
     is NetworkError.Http -> toDataError()
 }
+
 internal fun NetworkError<ChatServerError.GetParticipant>.toFindParticipantError(): ChatError.FindParticipant =
     toDomain(wrap = ChatError::Data) { server ->
         when (server.error) {

@@ -5,6 +5,7 @@ import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.util.NetworkError
 import io.github.neronguyenvn.nerochat.contract.auth.error.AuthServerError
 import io.github.neronguyenvn.nerochat.contract.chat.error.ChatServerError
+import io.github.neronguyenvn.nerochat.contract.error.CommonServerError
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -50,13 +51,36 @@ class ErrorMapperTest {
     }
 
     @Test
-    fun `NetworkError Http with rawCode maps to UnknownCode`() {
-        val httpError = NetworkError.Http(status = 400, rawCode = "GATEWAY_ERROR")
+    fun `NetworkError Http maps to UnknownCode`() {
+        val httpError = NetworkError.Http(status = 400)
         val dataError = httpError.toDataError()
 
         assertIs<DataError.Unexpected.UnknownCode>(dataError)
         assertEquals(400, dataError.status)
-        assertEquals("GATEWAY_ERROR", dataError.rawCode)
+    }
+
+    @Test
+    fun `NetworkError Common maps to appropriate DataErrors`() {
+        assertEquals(
+            DataError.Remote.Unauthorized,
+            NetworkError.Common(CommonServerError.Unauthorized, "Unauthorized").toDataError()
+        )
+        assertEquals(
+            DataError.Remote.Forbidden,
+            NetworkError.Common(CommonServerError.Forbidden, "Forbidden").toDataError()
+        )
+        assertEquals(
+            DataError.Unexpected.RequestRejected,
+            NetworkError.Common(CommonServerError.BadRequest, "Bad request").toDataError()
+        )
+        assertEquals(
+            DataError.Unexpected.RequestRejected,
+            NetworkError.Common(CommonServerError.ValidationFailed, "Validation failed").toDataError()
+        )
+        assertEquals(
+            DataError.Remote.Unavailable,
+            NetworkError.Common(CommonServerError.InternalServerError, "Server error").toDataError()
+        )
     }
 
     @Test

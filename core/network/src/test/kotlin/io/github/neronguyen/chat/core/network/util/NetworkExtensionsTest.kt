@@ -2,6 +2,8 @@ package io.github.neronguyen.chat.core.network.util
 
 import arrow.core.Either
 import io.github.neronguyenvn.nerochat.contract.auth.error.AuthServerError
+import io.github.neronguyenvn.nerochat.contract.error.ApiErrorResponse
+import io.github.neronguyenvn.nerochat.contract.error.CommonServerError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.SerializationException
@@ -51,7 +53,6 @@ class NetworkExtensionsTest {
     fun `safeCall parses successful body`() = runTest {
         val result: Either<NetworkError<AuthServerError>, String> = safeCall(
             json = json,
-            errorMapper = { AuthServerError.fromCode(it) },
             execute = { Response.success("success_data") }
         )
 
@@ -63,7 +64,6 @@ class NetworkExtensionsTest {
     fun `safeCall handles Unit return type on 204 No Content`() = runTest {
         val result: Either<NetworkError<AuthServerError>, Unit> = safeCall(
             json = json,
-            errorMapper = { AuthServerError.fromCode(it) },
             execute = { Response.success<Unit>(204, null) }
         )
 
@@ -82,26 +82,25 @@ class NetworkExtensionsTest {
 
         val result: Either<NetworkError<AuthServerError>, String> = safeCall(
             json = json,
-            errorMapper = { AuthServerError.fromCode(it) },
             execute = { response }
         )
 
         assertIs<Either.Left<NetworkError.Http>>(result)
         val error = result.value
         assertEquals(429, error.status)
-        assertNull(error.rawCode)
         assertEquals(60L, error.retryAfterSeconds)
     }
 
     @Test
     fun `safeCall maps recognized contract error to NetworkError Server with retryAfterSeconds`() = runTest {
-        val errorBody = """
-            {
-                "code": "RATE_LIMIT_EXCEEDED",
-                "message": "Too many login attempts",
-                "fieldErrors": {}
-            }
-        """.trimIndent()
+        val errorBody = json.encodeToString(
+            ApiErrorResponse<AuthServerError.Login>(
+                error = AuthServerError.RateLimitExceeded,
+                message = "Too many login attempts",
+                fieldErrors = emptyMap(),
+                retryAfterSeconds = null
+            )
+        )
 
         val response = createErrorResponse<String>(
             code = 429,
@@ -111,7 +110,6 @@ class NetworkExtensionsTest {
 
         val result: Either<NetworkError<AuthServerError.Login>, String> = safeCall(
             json = json,
-            errorMapper = { AuthServerError.fromCode(it) as? AuthServerError.Login },
             execute = { response }
         )
 
@@ -125,14 +123,14 @@ class NetworkExtensionsTest {
 
     @Test
     fun `safeCall extracts retryAfterSeconds from ApiErrorResponse body when header is absent`() = runTest {
-        val errorBody = """
-            {
-                "code": "RATE_LIMIT_EXCEEDED",
-                "message": "Too many requests",
-                "fieldErrors": {},
-                "retryAfterSeconds": 45
-            }
-        """.trimIndent()
+        val errorBody = json.encodeToString(
+            ApiErrorResponse<AuthServerError.Login>(
+                error = AuthServerError.RateLimitExceeded,
+                message = "Too many requests",
+                fieldErrors = emptyMap(),
+                retryAfterSeconds = 45L
+            )
+        )
 
         val response = createErrorResponse<String>(
             code = 429,
@@ -141,7 +139,6 @@ class NetworkExtensionsTest {
 
         val result: Either<NetworkError<AuthServerError.Login>, String> = safeCall(
             json = json,
-            errorMapper = { AuthServerError.fromCode(it) as? AuthServerError.Login },
             execute = { response }
         )
 
@@ -153,14 +150,14 @@ class NetworkExtensionsTest {
 
     @Test
     fun `safeCall prioritizes retryAfterSeconds from ApiErrorResponse body over header`() = runTest {
-        val errorBody = """
-            {
-                "code": "RATE_LIMIT_EXCEEDED",
-                "message": "Too many requests",
-                "fieldErrors": {},
-                "retryAfterSeconds": 30
-            }
-        """.trimIndent()
+        val errorBody = json.encodeToString(
+            ApiErrorResponse<AuthServerError.Login>(
+                error = AuthServerError.RateLimitExceeded,
+                message = "Too many requests",
+                fieldErrors = emptyMap(),
+                retryAfterSeconds = 30L
+            )
+        )
 
         val response = createErrorResponse<String>(
             code = 429,
@@ -170,7 +167,6 @@ class NetworkExtensionsTest {
 
         val result: Either<NetworkError<AuthServerError.Login>, String> = safeCall(
             json = json,
-            errorMapper = { AuthServerError.fromCode(it) as? AuthServerError.Login },
             execute = { response }
         )
 
@@ -181,10 +177,34 @@ class NetworkExtensionsTest {
     }
 
     @Test
-    fun `safeCall maps unrecognized contract error to NetworkError Http with rawCode`() = runTest {
+    fun `safeCall maps CommonServerError response to NetworkError Common`() = runTest {
+        val errorBody = json.encodeToString(
+            ApiErrorResponse<CommonServerError>(
+                error = CommonServerError.ValidationFailed,
+                message = "Invalid input",
+                fieldErrors = mapOf("email" to "Invalid format")
+            )
+        )
+
+        val response = createErrorResponse<String>(code = 400, body = errorBody)
+
+        val result: Either<NetworkError<AuthServerError.Login>, String> = safeCall(
+            json = json,
+            execute = { response }
+        )
+
+        assertIs<Either.Left<NetworkError.Common>>(result)
+        val commonError = result.value
+        assertEquals(CommonServerError.ValidationFailed, commonError.error)
+        assertEquals("Invalid input", commonError.message)
+        assertEquals("Invalid format", commonError.fieldErrors["email"])
+    }
+
+    @Test
+    fun `safeCall maps unrecognized contract error to NetworkError Http`() = runTest {
         val errorBody = """
             {
-                "code": "CUSTOM_GATEWAY_ERROR",
+                "error": { "type": "CUSTOM_GATEWAY_ERROR" },
                 "message": "Something unusual happened",
                 "fieldErrors": {}
             }
@@ -194,19 +214,17 @@ class NetworkExtensionsTest {
 
         val result: Either<NetworkError<AuthServerError>, String> = safeCall(
             json = json,
-            errorMapper = { AuthServerError.fromCode(it) },
             execute = { response }
         )
 
         assertIs<Either.Left<NetworkError.Http>>(result)
         val error = result.value
         assertEquals(400, error.status)
-        assertEquals("CUSTOM_GATEWAY_ERROR", error.rawCode)
         assertNull(error.retryAfterSeconds)
     }
 
     @Test
-    fun `safeCall maps non-JSON error to NetworkError Http with null rawCode`() = runTest {
+    fun `safeCall maps non-JSON error to NetworkError Http`() = runTest {
         val response = createErrorResponse<String>(
             code = 502,
             body = "<html>Bad Gateway</html>",
@@ -215,21 +233,19 @@ class NetworkExtensionsTest {
 
         val result: Either<NetworkError<AuthServerError>, String> = safeCall(
             json = json,
-            errorMapper = { AuthServerError.fromCode(it) },
             execute = { response }
         )
 
         assertIs<Either.Left<NetworkError.Http>>(result)
         val error = result.value
         assertEquals(502, error.status)
-        assertNull(error.rawCode)
+        assertNull(error.retryAfterSeconds)
     }
 
     @Test
     fun `safeCall maps SocketTimeoutException to NetworkError Transport Timeout`() = runTest {
         val result: Either<NetworkError<AuthServerError.Login>, String> = safeCall(
             json = json,
-            errorMapper = { AuthServerError.fromCode(it) as? AuthServerError.Login },
             execute = { throw SocketTimeoutException("Read timed out") }
         )
 
@@ -241,7 +257,6 @@ class NetworkExtensionsTest {
     fun `safeCall maps UnknownHostException to NetworkError Transport NoInternet`() = runTest {
         val result: Either<NetworkError<AuthServerError.Login>, String> = safeCall(
             json = json,
-            errorMapper = { AuthServerError.fromCode(it) as? AuthServerError.Login },
             execute = { throw UnknownHostException("Unable to resolve host") }
         )
 
@@ -253,7 +268,6 @@ class NetworkExtensionsTest {
     fun `safeCall maps ConnectException to NetworkError Transport NoInternet`() = runTest {
         val result: Either<NetworkError<AuthServerError.Login>, String> = safeCall(
             json = json,
-            errorMapper = { AuthServerError.fromCode(it) as? AuthServerError.Login },
             execute = { throw ConnectException("Connection refused") }
         )
 
@@ -265,7 +279,6 @@ class NetworkExtensionsTest {
     fun `safeCall maps UnresolvedAddressException to NetworkError Transport NoInternet`() = runTest {
         val result: Either<NetworkError<AuthServerError.Login>, String> = safeCall(
             json = json,
-            errorMapper = { AuthServerError.fromCode(it) as? AuthServerError.Login },
             execute = { throw UnresolvedAddressException() }
         )
 
@@ -277,7 +290,6 @@ class NetworkExtensionsTest {
     fun `safeCall maps SerializationException to NetworkError Transport Serialization`() = runTest {
         val result: Either<NetworkError<AuthServerError.Login>, String> = safeCall(
             json = json,
-            errorMapper = { AuthServerError.fromCode(it) as? AuthServerError.Login },
             execute = { throw SerializationException("Malformed JSON") }
         )
 
@@ -288,7 +300,7 @@ class NetworkExtensionsTest {
     @Test
     fun `safeCall rethrows IllegalStateException without swallowing`() = runTest {
         assertFailsWith<IllegalStateException> {
-            safeCall<String, AuthServerError.Login>(json = json, errorMapper = { null }) {
+            safeCall<String, AuthServerError.Login>(json = json) {
                 throw IllegalStateException("Programmer bug in response processing")
             }
         }
@@ -297,7 +309,7 @@ class NetworkExtensionsTest {
     @Test
     fun `safeCall rethrows NullPointerException without swallowing`() = runTest {
         assertFailsWith<NullPointerException> {
-            safeCall<String, AuthServerError.Login>(json = json, errorMapper = { null }) {
+            safeCall<String, AuthServerError.Login>(json = json) {
                 throw NullPointerException("Null pointer encountered")
             }
         }
@@ -306,7 +318,7 @@ class NetworkExtensionsTest {
     @Test
     fun `safeCall does not swallow CancellationException`() = runTest {
         assertFailsWith<CancellationException> {
-            safeCall<String, AuthServerError.Login>(json = json, errorMapper = { null }) {
+            safeCall<String, AuthServerError.Login>(json = json) {
                 throw CancellationException("Coroutine was cancelled")
             }
         }
