@@ -102,5 +102,7 @@
     <string name="chat_error_room_not_found">Chat room not found</string>
     <string name="chat_error_invalid_room_size">Invalid chat room size</string>
     <string name="chat_error_already_in_room">Participant is already in this room</string>
+    <string name="chat_error_participant_not_in_room">You are not a member of this chat room</string>
     <string name="chat_error_message_not_found">Message not found</string>
+    <string name="chat_error_not_message_sender">You can only delete your own messages</string>
 </resources>

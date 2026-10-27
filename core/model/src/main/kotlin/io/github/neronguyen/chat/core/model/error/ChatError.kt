@@ -13,7 +13,9 @@ sealed interface ChatError {
     data object RoomNotFound : SyncRoom, AddParticipants, LeaveRoom
     data object InvalidRoomSize : CreateRoom
     data object AlreadyInRoom : AddParticipants
+    data object ParticipantNotInRoom : AddParticipants
     data object MessageNotFound : DeleteMessage
+    data object NotMessageSender : DeleteMessage
 
     data class Data(val error: DataError) :
         FindParticipant,

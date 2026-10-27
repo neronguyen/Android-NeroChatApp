@@ -31,10 +31,18 @@ internal fun NetworkError.Http.toDataError(): DataError = when {
 
 internal fun NetworkError.Common.toDataError(): DataError = when (error) {
     CommonServerError.Unauthorized -> DataError.Remote.Unauthorized
-    CommonServerError.Forbidden -> DataError.Remote.Forbidden
+    CommonServerError.RateLimitExceeded -> DataError.Remote.RateLimited(retryAfterSeconds?.seconds)
     CommonServerError.BadRequest,
     CommonServerError.ValidationFailed -> DataError.Unexpected.RequestRejected
     CommonServerError.InternalServerError -> DataError.Remote.Unavailable
+}
+
+@JvmName("toNothingDataError")
+internal fun NetworkError<Nothing>.toDataError(): DataError = when (this) {
+    is NetworkError.Common -> toDataError()
+    is NetworkError.Transport -> toDataError()
+    is NetworkError.Http -> toDataError()
+    is NetworkError.Server -> error("Unreachable: NetworkError<Nothing> cannot have Server error")
 }
 
 /** Generic splitter: callers only describe the endpoint-specific server branch. */
@@ -57,8 +65,6 @@ internal fun NetworkError<AuthServerError.Login>.toLoginError(): AuthError.Login
         when (server.error) {
             AuthServerError.InvalidCredentials -> AuthError.InvalidCredentials
             AuthServerError.EmailNotVerified -> AuthError.EmailNotVerified
-            AuthServerError.RateLimitExceeded -> AuthError.Data(server.rateLimited())
-            AuthServerError.ValidationFailed -> AuthError.Data(DataError.Unexpected.RequestRejected)
         }
     }
 
@@ -66,63 +72,39 @@ internal fun NetworkError<AuthServerError.Register>.toRegisterError(): AuthError
     toDomain(wrap = AuthError::Data) { server ->
         when (server.error) {
             AuthServerError.UserAlreadyExists -> AuthError.EmailAlreadyInUse
-            AuthServerError.RateLimitExceeded -> AuthError.Data(server.rateLimited())
-            AuthServerError.ValidationFailed -> AuthError.Data(DataError.Unexpected.RequestRejected)
         }
     }
 
 @JvmName("toRefreshTokenDataError")
-internal fun NetworkError<AuthServerError.RefreshToken>.toDataError(): DataError = when (this) {
-    is NetworkError.Server -> when (this.error) {
-        AuthServerError.InvalidToken,
-        AuthServerError.UserNotFound -> DataError.Remote.Unauthorized
-        AuthServerError.RateLimitExceeded -> rateLimited()
-        AuthServerError.ValidationFailed -> DataError.Unexpected.RequestRejected
+internal fun NetworkError<AuthServerError.RefreshToken>.toDataError(): DataError =
+    toDomain(wrap = { it }) { server ->
+        when (server.error) {
+            AuthServerError.InvalidToken,
+            AuthServerError.UserNotFound -> DataError.Remote.Unauthorized
+        }
     }
-    is NetworkError.Common -> toDataError()
-    is NetworkError.Transport -> toDataError()
-    is NetworkError.Http -> toDataError()
-}
 
 @JvmName("toLogoutDataError")
-internal fun NetworkError<AuthServerError.Logout>.toDataError(): DataError = when (this) {
-    is NetworkError.Server -> when (this.error) {
-        AuthServerError.InvalidToken -> DataError.Remote.Unauthorized
-        AuthServerError.ValidationFailed -> DataError.Unexpected.RequestRejected
+internal fun NetworkError<AuthServerError.Logout>.toDataError(): DataError =
+    toDomain(wrap = { it }) { server ->
+        when (server.error) {
+            AuthServerError.InvalidToken -> DataError.Remote.Unauthorized
+        }
     }
-    is NetworkError.Common -> toDataError()
-    is NetworkError.Transport -> toDataError()
-    is NetworkError.Http -> toDataError()
-}
 
 // Chat mappers
-@JvmName("toGetRoomsDataError")
-internal fun NetworkError<ChatServerError.GetRooms>.toDataError(): DataError = when (this) {
-    is NetworkError.Server -> when (this.error) {
-        ChatServerError.Unauthorized -> DataError.Remote.Unauthorized
-    }
-    is NetworkError.Common -> toDataError()
-    is NetworkError.Transport -> toDataError()
-    is NetworkError.Http -> toDataError()
-}
-
 @JvmName("toGetMessagesDataError")
-internal fun NetworkError<ChatServerError.GetMessages>.toDataError(): DataError = when (this) {
-    is NetworkError.Server -> when (this.error) {
-        ChatServerError.Forbidden -> DataError.Remote.Forbidden
-        ChatServerError.Unauthorized -> DataError.Remote.Unauthorized
-        ChatServerError.BadRequest -> DataError.Unexpected.RequestRejected
+internal fun NetworkError<ChatServerError.GetMessages>.toDataError(): DataError =
+    toDomain(wrap = { it }) { server ->
+        when (server.error) {
+            ChatServerError.ParticipantNotInRoom -> DataError.Remote.Forbidden
+        }
     }
-    is NetworkError.Common -> toDataError()
-    is NetworkError.Transport -> toDataError()
-    is NetworkError.Http -> toDataError()
-}
 
 internal fun NetworkError<ChatServerError.GetParticipant>.toFindParticipantError(): ChatError.FindParticipant =
     toDomain(wrap = ChatError::Data) { server ->
         when (server.error) {
             ChatServerError.ChatParticipantNotFound -> ChatError.ParticipantNotFound
-            ChatServerError.Unauthorized -> ChatError.Data(DataError.Remote.Unauthorized)
         }
     }
 
@@ -130,8 +112,6 @@ internal fun NetworkError<ChatServerError.GetRoom>.toSyncRoomError(): ChatError.
     toDomain(wrap = ChatError::Data) { server ->
         when (server.error) {
             ChatServerError.ChatRoomNotFound -> ChatError.RoomNotFound
-            ChatServerError.Unauthorized -> ChatError.Data(DataError.Remote.Unauthorized)
-            ChatServerError.BadRequest -> ChatError.Data(DataError.Unexpected.RequestRejected)
         }
     }
 
@@ -140,8 +120,6 @@ internal fun NetworkError<ChatServerError.CreateRoom>.toCreateRoomError(): ChatE
         when (server.error) {
             ChatServerError.ChatParticipantNotFound -> ChatError.ParticipantNotFound
             ChatServerError.InvalidChatRoomSize -> ChatError.InvalidRoomSize
-            ChatServerError.ValidationFailed -> ChatError.Data(DataError.Unexpected.RequestRejected)
-            ChatServerError.Unauthorized -> ChatError.Data(DataError.Remote.Unauthorized)
         }
     }
 
@@ -151,10 +129,7 @@ internal fun NetworkError<ChatServerError.AddParticipants>.toAddParticipantsErro
             ChatServerError.ChatParticipantNotFound -> ChatError.ParticipantNotFound
             ChatServerError.ChatRoomNotFound -> ChatError.RoomNotFound
             ChatServerError.ParticipantAlreadyInRoom -> ChatError.AlreadyInRoom
-            ChatServerError.Forbidden -> ChatError.Data(DataError.Remote.Forbidden)
-            ChatServerError.ValidationFailed -> ChatError.Data(DataError.Unexpected.RequestRejected)
-            ChatServerError.Unauthorized -> ChatError.Data(DataError.Remote.Unauthorized)
-            ChatServerError.BadRequest -> ChatError.Data(DataError.Unexpected.RequestRejected)
+            ChatServerError.ParticipantNotInRoom -> ChatError.ParticipantNotInRoom
         }
     }
 
@@ -163,8 +138,6 @@ internal fun NetworkError<ChatServerError.LeaveRoom>.toLeaveRoomError(): ChatErr
         when (server.error) {
             ChatServerError.ChatParticipantNotFound -> ChatError.ParticipantNotFound
             ChatServerError.ChatRoomNotFound -> ChatError.RoomNotFound
-            ChatServerError.Unauthorized -> ChatError.Data(DataError.Remote.Unauthorized)
-            ChatServerError.BadRequest -> ChatError.Data(DataError.Unexpected.RequestRejected)
         }
     }
 
@@ -172,8 +145,6 @@ internal fun NetworkError<ChatServerError.DeleteMessage>.toDeleteMessageError():
     toDomain(wrap = ChatError::Data) { server ->
         when (server.error) {
             ChatServerError.MessageNotFound -> ChatError.MessageNotFound
-            ChatServerError.Forbidden -> ChatError.Data(DataError.Remote.Forbidden)
-            ChatServerError.Unauthorized -> ChatError.Data(DataError.Remote.Unauthorized)
-            ChatServerError.BadRequest -> ChatError.Data(DataError.Unexpected.RequestRejected)
+            ChatServerError.NotMessageSender -> ChatError.NotMessageSender
         }
     }

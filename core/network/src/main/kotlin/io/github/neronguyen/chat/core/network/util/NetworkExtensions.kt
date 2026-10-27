@@ -18,7 +18,7 @@ import java.nio.channels.UnresolvedAddressException
 internal suspend fun <T, S : ServerError> safeCallInternal(
     json: Json,
     isUnit: Boolean,
-    errorSerializer: KSerializer<ApiErrorResponse<S>>,
+    errorSerializer: KSerializer<ApiErrorResponse<S>>?,
     execute: suspend () -> Response<T>,
 ): Either<NetworkError<S>, T> {
     val response = try {
@@ -53,7 +53,16 @@ internal suspend fun <T, S : ServerError> safeCallInternal(
         null
     }
 
-    if (!errorBodyString.isNullOrBlank()) {
+    if (errorBodyString.isNullOrBlank()) {
+        return Either.Left(
+            NetworkError.Http(
+                status = response.code(),
+                retryAfterSeconds = retryAfterSeconds,
+            )
+        )
+    }
+
+    if (errorSerializer != null) {
         val serverError = try {
             json.decodeFromString(errorSerializer, errorBodyString)
         } catch (_: Exception) {
@@ -61,34 +70,32 @@ internal suspend fun <T, S : ServerError> safeCallInternal(
         }
 
         if (serverError != null) {
-            val effectiveRetryAfter = serverError.retryAfterSeconds ?: retryAfterSeconds
             return Either.Left(
                 NetworkError.Server(
                     error = serverError.error,
                     message = serverError.message,
                     fieldErrors = serverError.fieldErrors,
-                    retryAfterSeconds = effectiveRetryAfter,
+                    retryAfterSeconds = serverError.retryAfterSeconds ?: retryAfterSeconds,
                 )
             )
         }
+    }
 
-        val commonError = try {
-            json.decodeFromString<ApiErrorResponse<CommonServerError>>(errorBodyString)
-        } catch (_: Exception) {
-            null
-        }
+    val commonError = try {
+        json.decodeFromString<ApiErrorResponse<CommonServerError>>(errorBodyString)
+    } catch (_: Exception) {
+        null
+    }
 
-        if (commonError != null) {
-            val effectiveRetryAfter = commonError.retryAfterSeconds ?: retryAfterSeconds
-            return Either.Left(
-                NetworkError.Common(
-                    error = commonError.error,
-                    message = commonError.message,
-                    fieldErrors = commonError.fieldErrors,
-                    retryAfterSeconds = effectiveRetryAfter,
-                )
+    if (commonError != null) {
+        return Either.Left(
+            NetworkError.Common(
+                error = commonError.error,
+                message = commonError.message,
+                fieldErrors = commonError.fieldErrors,
+                retryAfterSeconds = commonError.retryAfterSeconds ?: retryAfterSeconds,
             )
-        }
+        )
     }
 
     return Either.Left(
@@ -106,6 +113,17 @@ internal suspend inline fun <reified T, reified S : ServerError> safeCall(
     json = json,
     isUnit = T::class == Unit::class,
     errorSerializer = serializer<ApiErrorResponse<S>>(),
+    execute = execute,
+)
+
+@JvmName("safeCallCommon")
+internal suspend inline fun <reified T> safeCallCommon(
+    json: Json,
+    noinline execute: suspend () -> Response<T>,
+): Either<NetworkError<Nothing>, T> = safeCallInternal(
+    json = json,
+    isUnit = T::class == Unit::class,
+    errorSerializer = null,
     execute = execute,
 )
 

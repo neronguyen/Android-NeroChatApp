@@ -8,14 +8,11 @@ import io.github.neronguyen.chat.core.database.entity.ChatRoomEntity
 import io.github.neronguyen.chat.core.database.entity.ChatRoomParticipantCrossRef
 import io.github.neronguyen.chat.core.database.model.ChatRoomWithDetails
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
-import io.github.neronguyen.chat.core.model.error.ChatError
-import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.util.NetworkError
 import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageSliceDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatParticipantDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatRoomDto
-import io.github.neronguyenvn.nerochat.contract.chat.ChatRoomType as ContractChatRoomType
 import io.github.neronguyenvn.nerochat.contract.chat.error.ChatServerError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -28,6 +25,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Instant
+import io.github.neronguyenvn.nerochat.contract.chat.ChatRoomType as ContractChatRoomType
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatRoomRepositoryImplTest {
@@ -151,7 +149,7 @@ class ChatRoomRepositoryImplTest {
         var participantResponse: Either<NetworkError<ChatServerError.GetParticipant>, ChatParticipantDto> =
             Either.Left(NetworkError.Transport.NoInternet)
 
-        override suspend fun getChatRoomsForUser(): Either<NetworkError<ChatServerError.GetRooms>, List<ChatRoomDto>> =
+        override suspend fun getChatRoomsForUser(): Either<NetworkError<Nothing>, List<ChatRoomDto>> =
             Either.Right(emptyList())
 
         override suspend fun getChatRoom(roomId: String): Either<NetworkError<ChatServerError.GetRoom>, ChatRoomDto> =

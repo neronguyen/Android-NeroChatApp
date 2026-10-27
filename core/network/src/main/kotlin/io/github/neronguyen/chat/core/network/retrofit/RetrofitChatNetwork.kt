@@ -6,6 +6,7 @@ import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.di.AuthenticatedOkHttp
 import io.github.neronguyen.chat.core.network.util.NetworkError
 import io.github.neronguyen.chat.core.network.util.safeCall
+import io.github.neronguyen.chat.core.network.util.safeCallCommon
 import io.github.neronguyenvn.nerochat.contract.chat.AddChatParticipantRequest
 import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageSliceDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatParticipantDto
@@ -93,8 +94,8 @@ internal class RetrofitChatNetwork @Inject constructor(
             .create(RetrofitChatNetworkApi::class.java)
     }
 
-    override suspend fun getChatRoomsForUser(): Either<NetworkError<ChatServerError.GetRooms>, List<ChatRoomDto>> =
-        safeCall(networkJson) { networkApi.getChatRoomsForUser() }
+    override suspend fun getChatRoomsForUser(): Either<NetworkError<Nothing>, List<ChatRoomDto>> =
+        safeCallCommon(networkJson) { networkApi.getChatRoomsForUser() }
 
     override suspend fun getChatRoom(roomId: String): Either<NetworkError<ChatServerError.GetRoom>, ChatRoomDto> =
         safeCall(networkJson) { networkApi.getChatRoom(roomId) }

@@ -11,18 +11,17 @@ import io.github.neronguyen.chat.core.datastore.TokenDataSource
 import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.MessageDeliveryStatus
 import io.github.neronguyen.chat.core.model.User
-import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.ChatNetworkDataSource
 import io.github.neronguyen.chat.core.network.ChatRealtimeDataSource
+import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
 import io.github.neronguyen.chat.core.network.util.NetworkError
 import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageSliceDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatParticipantDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatRoomDto
-import io.github.neronguyenvn.nerochat.contract.chat.error.ChatServerError
 import io.github.neronguyenvn.nerochat.contract.chat.WsClientMessage
 import io.github.neronguyenvn.nerochat.contract.chat.WsServerEvent
-import io.github.neronguyen.chat.core.network.model.websocket.SocketConnectionState
+import io.github.neronguyenvn.nerochat.contract.chat.error.ChatServerError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -213,7 +212,7 @@ class ChatMessageRepositoryImplTest {
         var lastRequestedBefore: Instant? = null
         var messagesToReturn = ChatMessageSliceDto(messages = emptyList(), hasMore = false)
 
-        override suspend fun getChatRoomsForUser(): Either<NetworkError<ChatServerError.GetRooms>, List<ChatRoomDto>> =
+        override suspend fun getChatRoomsForUser(): Either<NetworkError<Nothing>, List<ChatRoomDto>> =
             Either.Right(emptyList())
 
         override suspend fun getChatRoom(roomId: String): Either<NetworkError<ChatServerError.GetRoom>, ChatRoomDto> =

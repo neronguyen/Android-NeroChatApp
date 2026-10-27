@@ -13,7 +13,6 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.ResponseBody.Companion.toResponseBody
 import retrofit2.Response
-import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
@@ -92,20 +91,19 @@ class NetworkExtensionsTest {
     }
 
     @Test
-    fun `safeCall maps recognized contract error to NetworkError Server with retryAfterSeconds`() = runTest {
+    fun `safeCall maps recognized contract error to NetworkError Server`() = runTest {
         val errorBody = json.encodeToString(
             ApiErrorResponse<AuthServerError.Login>(
-                error = AuthServerError.RateLimitExceeded,
-                message = "Too many login attempts",
+                error = AuthServerError.InvalidCredentials,
+                message = "Invalid credentials",
                 fieldErrors = emptyMap(),
                 retryAfterSeconds = null
             )
         )
 
         val response = createErrorResponse<String>(
-            code = 429,
+            code = 401,
             body = errorBody,
-            headers = mapOf("Retry-After" to "120")
         )
 
         val result: Either<NetworkError<AuthServerError.Login>, String> = safeCall(
@@ -115,17 +113,16 @@ class NetworkExtensionsTest {
 
         assertIs<Either.Left<NetworkError.Server<AuthServerError.Login>>>(result)
         val serverError = result.value
-        assertEquals(AuthServerError.RateLimitExceeded, serverError.error)
-        assertEquals("Too many login attempts", serverError.message)
-        assertEquals(120L, serverError.retryAfterSeconds)
+        assertEquals(AuthServerError.InvalidCredentials, serverError.error)
+        assertEquals("Invalid credentials", serverError.message)
         assertTrue(serverError.fieldErrors.isEmpty())
     }
 
     @Test
     fun `safeCall extracts retryAfterSeconds from ApiErrorResponse body when header is absent`() = runTest {
         val errorBody = json.encodeToString(
-            ApiErrorResponse<AuthServerError.Login>(
-                error = AuthServerError.RateLimitExceeded,
+            ApiErrorResponse<CommonServerError>(
+                error = CommonServerError.RateLimitExceeded,
                 message = "Too many requests",
                 fieldErrors = emptyMap(),
                 retryAfterSeconds = 45L
@@ -142,17 +139,17 @@ class NetworkExtensionsTest {
             execute = { response }
         )
 
-        assertIs<Either.Left<NetworkError.Server<AuthServerError.Login>>>(result)
-        val serverError = result.value
-        assertEquals(AuthServerError.RateLimitExceeded, serverError.error)
-        assertEquals(45L, serverError.retryAfterSeconds)
+        assertIs<Either.Left<NetworkError.Common>>(result)
+        val commonError = result.value
+        assertEquals(CommonServerError.RateLimitExceeded, commonError.error)
+        assertEquals(45L, commonError.retryAfterSeconds)
     }
 
     @Test
     fun `safeCall prioritizes retryAfterSeconds from ApiErrorResponse body over header`() = runTest {
         val errorBody = json.encodeToString(
-            ApiErrorResponse<AuthServerError.Login>(
-                error = AuthServerError.RateLimitExceeded,
+            ApiErrorResponse<CommonServerError>(
+                error = CommonServerError.RateLimitExceeded,
                 message = "Too many requests",
                 fieldErrors = emptyMap(),
                 retryAfterSeconds = 30L
@@ -170,10 +167,32 @@ class NetworkExtensionsTest {
             execute = { response }
         )
 
-        assertIs<Either.Left<NetworkError.Server<AuthServerError.Login>>>(result)
-        val serverError = result.value
-        assertEquals(AuthServerError.RateLimitExceeded, serverError.error)
-        assertEquals(30L, serverError.retryAfterSeconds)
+        assertIs<Either.Left<NetworkError.Common>>(result)
+        val commonError = result.value
+        assertEquals(CommonServerError.RateLimitExceeded, commonError.error)
+        assertEquals(30L, commonError.retryAfterSeconds)
+    }
+
+    @Test
+    fun `safeCallCommon decodes CommonServerError as NetworkError Common`() = runTest {
+        val errorBody = json.encodeToString(
+            ApiErrorResponse<CommonServerError>(
+                error = CommonServerError.Unauthorized,
+                message = "Unauthorized",
+            )
+        )
+
+        val response = createErrorResponse<String>(code = 401, body = errorBody)
+
+        val result: Either<NetworkError<Nothing>, String> = safeCallCommon(
+            json = json,
+            execute = { response }
+        )
+
+        assertIs<Either.Left<NetworkError.Common>>(result)
+        val commonError = result.value
+        assertEquals(CommonServerError.Unauthorized, commonError.error)
+        assertEquals("Unauthorized", commonError.message)
     }
 
     @Test

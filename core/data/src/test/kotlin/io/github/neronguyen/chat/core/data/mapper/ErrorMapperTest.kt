@@ -1,6 +1,7 @@
 package io.github.neronguyen.chat.core.data.mapper
 
 import io.github.neronguyen.chat.core.model.error.AuthError
+import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.util.NetworkError
 import io.github.neronguyenvn.nerochat.contract.auth.error.AuthServerError
@@ -66,8 +67,12 @@ class ErrorMapperTest {
             NetworkError.Common(CommonServerError.Unauthorized, "Unauthorized").toDataError()
         )
         assertEquals(
-            DataError.Remote.Forbidden,
-            NetworkError.Common(CommonServerError.Forbidden, "Forbidden").toDataError()
+            DataError.Remote.RateLimited(60.seconds),
+            NetworkError.Common(
+                CommonServerError.RateLimitExceeded,
+                "Rate limit exceeded",
+                retryAfterSeconds = 60L
+            ).toDataError()
         )
         assertEquals(
             DataError.Unexpected.RequestRejected,
@@ -91,20 +96,20 @@ class ErrorMapperTest {
     }
 
     @Test
-    fun `Chat getRooms toDataError maps Unauthorized, Http 429 and Transport`() {
-        val unauthorized: NetworkError<ChatServerError.GetRooms> = NetworkError.Server(
-            error = ChatServerError.Unauthorized,
+    fun `NetworkError with Nothing toDataError maps Common, Http 429 and Transport`() {
+        val unauthorized: NetworkError<Nothing> = NetworkError.Common(
+            error = CommonServerError.Unauthorized,
             message = "Unauthorized"
         )
         assertEquals(DataError.Remote.Unauthorized, unauthorized.toDataError())
 
-        val gateway429: NetworkError<ChatServerError.GetRooms> =
+        val gateway429: NetworkError<Nothing> =
             NetworkError.Http(status = 429, retryAfterSeconds = 45L)
         val rateLimited = gateway429.toDataError()
         assertIs<DataError.Remote.RateLimited>(rateLimited)
         assertEquals(45.seconds, rateLimited.retryAfter)
 
-        val offline: NetworkError<ChatServerError.GetRooms> = NetworkError.Transport.NoInternet
+        val offline: NetworkError<Nothing> = NetworkError.Transport.NoInternet
         assertEquals(DataError.Connectivity.NoInternet, offline.toDataError())
     }
 
@@ -124,9 +129,9 @@ class ErrorMapperTest {
     }
 
     @Test
-    fun `Auth login domain mapping maps RateLimitExceeded server error with retry duration`() {
-        val rateLimited: NetworkError<AuthServerError.Login> = NetworkError.Server(
-            error = AuthServerError.RateLimitExceeded,
+    fun `Auth login domain mapping maps Common RateLimitExceeded with retry duration`() {
+        val rateLimited: NetworkError<AuthServerError.Login> = NetworkError.Common(
+            error = CommonServerError.RateLimitExceeded,
             message = "Too many attempts",
             retryAfterSeconds = 120L
         )
@@ -168,38 +173,50 @@ class ErrorMapperTest {
     }
 
     @Test
-    fun `Auth logout toDataError maps InvalidToken to Unauthorized and ValidationFailed to RequestRejected`() {
+    fun `Auth logout toDataError maps InvalidToken to Unauthorized`() {
         val invalidToken: NetworkError<AuthServerError.Logout> = NetworkError.Server(
             error = AuthServerError.InvalidToken,
             message = "Token invalid"
         )
         assertEquals(DataError.Remote.Unauthorized, invalidToken.toDataError())
-
-        val validationFailed: NetworkError<AuthServerError.Logout> = NetworkError.Server(
-            error = AuthServerError.ValidationFailed,
-            message = "Validation failed"
-        )
-        assertEquals(DataError.Unexpected.RequestRejected, validationFailed.toDataError())
     }
 
     @Test
-    fun `Chat getMessages toDataError maps Forbidden, Unauthorized, and BadRequest appropriately`() {
-        val forbidden: NetworkError<ChatServerError.GetMessages> = NetworkError.Server(
-            error = ChatServerError.Forbidden,
-            message = "Access denied"
+    fun `Chat getMessages toDataError maps ParticipantNotInRoom to Forbidden`() {
+        val participantNotInRoom: NetworkError<ChatServerError.GetMessages> = NetworkError.Server(
+            error = ChatServerError.ParticipantNotInRoom,
+            message = "Not in room"
         )
-        assertEquals(DataError.Remote.Forbidden, forbidden.toDataError())
+        assertEquals(DataError.Remote.Forbidden, participantNotInRoom.toDataError())
+    }
 
-        val unauthorized: NetworkError<ChatServerError.GetMessages> = NetworkError.Server(
-            error = ChatServerError.Unauthorized,
-            message = "Unauthorized"
+    @Test
+    fun `Chat addParticipants toAddParticipantsError maps domain errors`() {
+        val notInRoom: NetworkError<ChatServerError.AddParticipants> = NetworkError.Server(
+            error = ChatServerError.ParticipantNotInRoom,
+            message = "Not in room"
         )
-        assertEquals(DataError.Remote.Unauthorized, unauthorized.toDataError())
+        assertEquals(ChatError.ParticipantNotInRoom, notInRoom.toAddParticipantsError())
 
-        val badRequest: NetworkError<ChatServerError.GetMessages> = NetworkError.Server(
-            error = ChatServerError.BadRequest,
-            message = "Bad request"
+        val alreadyInRoom: NetworkError<ChatServerError.AddParticipants> = NetworkError.Server(
+            error = ChatServerError.ParticipantAlreadyInRoom,
+            message = "Already in room"
         )
-        assertEquals(DataError.Unexpected.RequestRejected, badRequest.toDataError())
+        assertEquals(ChatError.AlreadyInRoom, alreadyInRoom.toAddParticipantsError())
+    }
+
+    @Test
+    fun `Chat deleteMessage toDeleteMessageError maps MessageNotFound and NotMessageSender`() {
+        val notFound: NetworkError<ChatServerError.DeleteMessage> = NetworkError.Server(
+            error = ChatServerError.MessageNotFound,
+            message = "Not found"
+        )
+        assertEquals(ChatError.MessageNotFound, notFound.toDeleteMessageError())
+
+        val notSender: NetworkError<ChatServerError.DeleteMessage> = NetworkError.Server(
+            error = ChatServerError.NotMessageSender,
+            message = "Not sender"
+        )
+        assertEquals(ChatError.NotMessageSender, notSender.toDeleteMessageError())
     }
 }
