@@ -49,23 +49,23 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 if (useLocalContract) {
     includeBuild(contractRepoDir) {
         dependencySubstitution {
-            substitute(module("io.github.neronguyenvn.nerochat.contract:contract-core")).using(
-                project(":contract-core")
+            substitute(module("io.github.neronguyenvn.nerochat.contract:common")).using(
+                project(":contract:common")
             )
-            substitute(module("io.github.neronguyenvn.nerochat.contract:contract-auth")).using(
-                project(":contract-auth")
+            substitute(module("io.github.neronguyenvn.nerochat.contract:auth")).using(
+                project(":contract:auth")
             )
-            substitute(module("io.github.neronguyenvn.nerochat.contract:contract-chat")).using(
-                project(":contract-chat")
+            substitute(module("io.github.neronguyenvn.nerochat.contract:chat")).using(
+                project(":contract:chat")
             )
-            substitute(module("io.github.neronguyenvn.nerochat.contract:validation-core")).using(
-                project(":validation-core")
+            substitute(module("io.github.neronguyenvn.nerochat.validation:common")).using(
+                project(":validation:common")
             )
-            substitute(module("io.github.neronguyenvn.nerochat.contract:validation-auth")).using(
-                project(":validation-auth")
+            substitute(module("io.github.neronguyenvn.nerochat.validation:auth")).using(
+                project(":validation:auth")
             )
-            substitute(module("io.github.neronguyenvn.nerochat.contract:validation-chat")).using(
-                project(":validation-chat")
+            substitute(module("io.github.neronguyenvn.nerochat.validation:chat")).using(
+                project(":validation:chat")
             )
         }
     }

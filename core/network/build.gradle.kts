@@ -51,7 +51,7 @@ dependencies {
     implementation(libs.arrow.core)
 
     // Contract
-    api(libs.contract.core)
+    api(libs.contract.common)
     api(libs.contract.auth)
     api(libs.contract.chat)
 

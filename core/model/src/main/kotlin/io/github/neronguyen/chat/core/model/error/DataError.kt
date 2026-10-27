@@ -21,7 +21,7 @@ sealed interface DataError {
     /** Client and server disagree (contract drift, bug, malformed payload). */
     sealed interface Unexpected : DataError {
         data object Serialization : Unexpected
-        data class UnknownCode(val status: Int, val rawCode: String?) : Unexpected
+        data class UnknownCode(val status: Int) : Unexpected
         data object RequestRejected : Unexpected
     }
 

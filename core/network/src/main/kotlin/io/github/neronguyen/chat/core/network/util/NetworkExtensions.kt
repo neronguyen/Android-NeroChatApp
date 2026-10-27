@@ -2,9 +2,12 @@ package io.github.neronguyen.chat.core.network.util
 
 import arrow.core.Either
 import io.github.neronguyenvn.nerochat.contract.error.ApiErrorResponse
+import io.github.neronguyenvn.nerochat.contract.error.CommonServerError
 import io.github.neronguyenvn.nerochat.contract.error.ServerError
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.serializer
 import retrofit2.Response
 import java.io.IOException
 import java.net.ConnectException
@@ -15,7 +18,7 @@ import java.nio.channels.UnresolvedAddressException
 internal suspend fun <T, S : ServerError> safeCallInternal(
     json: Json,
     isUnit: Boolean,
-    errorMapper: (String) -> S?,
+    errorSerializer: KSerializer<ApiErrorResponse<S>>,
     execute: suspend () -> Response<T>,
 ): Either<NetworkError<S>, T> {
     val response = try {
@@ -38,7 +41,6 @@ internal suspend fun <T, S : ServerError> safeCallInternal(
             else -> Either.Left(
                 NetworkError.Http(
                     status = response.code(),
-                    rawCode = null,
                     retryAfterSeconds = retryAfterSeconds,
                 )
             )
@@ -52,29 +54,37 @@ internal suspend fun <T, S : ServerError> safeCallInternal(
     }
 
     if (!errorBodyString.isNullOrBlank()) {
-        val apiError = try {
-            json.decodeFromString<ApiErrorResponse>(errorBodyString)
+        val serverError = try {
+            json.decodeFromString(errorSerializer, errorBodyString)
         } catch (_: Exception) {
             null
         }
 
-        if (apiError != null) {
-            val effectiveRetryAfter = apiError.retryAfterSeconds ?: retryAfterSeconds
-            val serverError = errorMapper(apiError.code)
-            if (serverError != null) {
-                return Either.Left(
-                    NetworkError.Server(
-                        error = serverError,
-                        message = apiError.message,
-                        fieldErrors = apiError.fieldErrors,
-                        retryAfterSeconds = effectiveRetryAfter,
-                    )
-                )
-            }
+        if (serverError != null) {
+            val effectiveRetryAfter = serverError.retryAfterSeconds ?: retryAfterSeconds
             return Either.Left(
-                NetworkError.Http(
-                    status = response.code(),
-                    rawCode = apiError.code,
+                NetworkError.Server(
+                    error = serverError.error,
+                    message = serverError.message,
+                    fieldErrors = serverError.fieldErrors,
+                    retryAfterSeconds = effectiveRetryAfter,
+                )
+            )
+        }
+
+        val commonError = try {
+            json.decodeFromString<ApiErrorResponse<CommonServerError>>(errorBodyString)
+        } catch (_: Exception) {
+            null
+        }
+
+        if (commonError != null) {
+            val effectiveRetryAfter = commonError.retryAfterSeconds ?: retryAfterSeconds
+            return Either.Left(
+                NetworkError.Common(
+                    error = commonError.error,
+                    message = commonError.message,
+                    fieldErrors = commonError.fieldErrors,
                     retryAfterSeconds = effectiveRetryAfter,
                 )
             )
@@ -84,20 +94,18 @@ internal suspend fun <T, S : ServerError> safeCallInternal(
     return Either.Left(
         NetworkError.Http(
             status = response.code(),
-            rawCode = null,
             retryAfterSeconds = retryAfterSeconds,
         )
     )
 }
 
-internal suspend inline fun <reified T, S : ServerError> safeCall(
+internal suspend inline fun <reified T, reified S : ServerError> safeCall(
     json: Json,
-    noinline errorMapper: (String) -> S?,
     noinline execute: suspend () -> Response<T>,
 ): Either<NetworkError<S>, T> = safeCallInternal(
     json = json,
     isUnit = T::class == Unit::class,
-    errorMapper = errorMapper,
+    errorSerializer = serializer<ApiErrorResponse<S>>(),
     execute = execute,
 )
 

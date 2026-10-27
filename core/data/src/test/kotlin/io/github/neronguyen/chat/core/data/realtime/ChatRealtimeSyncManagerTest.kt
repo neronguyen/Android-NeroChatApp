@@ -15,6 +15,7 @@ import io.github.neronguyenvn.nerochat.contract.chat.ChatMessageDto
 import io.github.neronguyenvn.nerochat.contract.chat.ChatParticipantDto
 import io.github.neronguyenvn.nerochat.contract.chat.WsClientMessage
 import io.github.neronguyenvn.nerochat.contract.chat.WsServerEvent
+import io.github.neronguyenvn.nerochat.contract.chat.error.ChatServerError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -366,7 +367,7 @@ class ChatRealtimeSyncManagerTest {
 
         fakeDataSource.incomingEventsFlow.emit(
             WsServerEvent.Error(
-                code = "DUPLICATE_MESSAGE_ID",
+                error = ChatServerError.DuplicateMessageId,
                 message = "Message already processed",
                 messageId = "msg-123"
             )
