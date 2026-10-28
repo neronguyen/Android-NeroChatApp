@@ -33,7 +33,7 @@ internal fun NetworkError.Common.toDataError(): DataError = when (error) {
     CommonServerError.Unauthorized -> DataError.Remote.Unauthorized
     CommonServerError.RateLimitExceeded -> DataError.Remote.RateLimited(retryAfterSeconds?.seconds)
     CommonServerError.BadRequest,
-    CommonServerError.ValidationFailed -> DataError.Unexpected.RequestRejected
+    CommonServerError.ValidationFailed -> DataError.Unexpected.RequestRejected(fieldErrors)
     CommonServerError.InternalServerError -> DataError.Remote.Unavailable
 }
 

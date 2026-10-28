@@ -75,12 +75,20 @@ class ErrorMapperTest {
             ).toDataError()
         )
         assertEquals(
-            DataError.Unexpected.RequestRejected,
+            DataError.Unexpected.RequestRejected(),
             NetworkError.Common(CommonServerError.BadRequest, "Bad request").toDataError()
         )
         assertEquals(
-            DataError.Unexpected.RequestRejected,
+            DataError.Unexpected.RequestRejected(),
             NetworkError.Common(CommonServerError.ValidationFailed, "Validation failed").toDataError()
+        )
+        assertEquals(
+            DataError.Unexpected.RequestRejected(mapOf("displayName" to "Display name must not be blank")),
+            NetworkError.Common(
+                CommonServerError.ValidationFailed,
+                "Validation failed",
+                fieldErrors = mapOf("displayName" to "Display name must not be blank")
+            ).toDataError()
         )
         assertEquals(
             DataError.Remote.Unavailable,

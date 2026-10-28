@@ -22,7 +22,7 @@ sealed interface DataError {
     sealed interface Unexpected : DataError {
         data object Serialization : Unexpected
         data class UnknownCode(val status: Int) : Unexpected
-        data object RequestRejected : Unexpected
+        data class RequestRejected(val fieldErrors: Map<String, String> = emptyMap()) : Unexpected
     }
 
     /** Device-side state problem. */

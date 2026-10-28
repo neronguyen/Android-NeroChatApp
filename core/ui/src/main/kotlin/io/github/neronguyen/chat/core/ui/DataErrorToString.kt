@@ -12,5 +12,13 @@ fun DataError.asUiText(): String = when (this) {
     DataError.Remote.Forbidden -> stringResource(R.string.error_forbidden)
     is DataError.Remote.RateLimited -> stringResource(R.string.error_rate_limited)
     DataError.Remote.Unavailable -> stringResource(R.string.error_server_unavailable)
+    is DataError.Unexpected.RequestRejected -> {
+        if (fieldErrors.isNotEmpty()) {
+            val fields = fieldErrors.keys.joinToString(", ")
+            stringResource(R.string.error_fields_rejected, fields)
+        } else {
+            stringResource(R.string.error_unknown)
+        }
+    }
     is DataError.Unexpected -> stringResource(R.string.error_unknown)
 }
