@@ -295,7 +295,7 @@ class AuthRepositoryImplTest {
         val networkDataSource = FakeAuthNetworkDataSource().apply {
             refreshResult = {
                 Either.Left(
-                    NetworkError.Server(
+                    NetworkError.Business(
                         error = AuthServerError.InvalidToken,
                         message = "Refresh token expired or invalid"
                     )

@@ -98,22 +98,22 @@ internal class RetrofitChatNetwork @Inject constructor(
         safeCallCommon(networkJson) { networkApi.getChatRoomsForUser() }
 
     override suspend fun getChatRoom(roomId: String): Either<NetworkError<ChatServerError.GetRoom>, ChatRoomDto> =
-        safeCall(networkJson) { networkApi.getChatRoom(roomId) }
+        safeCall(networkJson, ChatServerError.GetRoom) { networkApi.getChatRoom(roomId) }
 
     override suspend fun getMessagesForChatRoom(
         roomId: String,
         before: Instant?
     ): Either<NetworkError<ChatServerError.GetMessages>, ChatMessageSliceDto> =
-        safeCall(networkJson) { networkApi.getMessagesForChatRoom(roomId, before) }
+        safeCall(networkJson, ChatServerError.GetMessages) { networkApi.getMessagesForChatRoom(roomId, before) }
 
     override suspend fun getParticipantByEmail(email: String): Either<NetworkError<ChatServerError.GetParticipant>, ChatParticipantDto> =
-        safeCall(networkJson) { networkApi.getParticipantByEmail(email) }
+        safeCall(networkJson, ChatServerError.GetParticipant) { networkApi.getParticipantByEmail(email) }
 
     override suspend fun createDirectChatRoom(
         targetUserId: String,
         message: String
     ): Either<NetworkError<ChatServerError.CreateRoom>, ChatRoomDto> =
-        safeCall(networkJson) {
+        safeCall(networkJson, ChatServerError.CreateRoom) {
             networkApi.createDirectChatRoom(
                 CreateDirectChatRoomRequest(targetUserId = targetUserId, message = message)
             )
@@ -123,7 +123,7 @@ internal class RetrofitChatNetwork @Inject constructor(
         participantIds: List<String>,
         name: String?
     ): Either<NetworkError<ChatServerError.CreateRoom>, ChatRoomDto> =
-        safeCall(networkJson) {
+        safeCall(networkJson, ChatServerError.CreateRoom) {
             networkApi.createGroupChatRoom(
                 CreateGroupChatRoomRequest(participantIds = participantIds, name = name)
             )
@@ -133,7 +133,7 @@ internal class RetrofitChatNetwork @Inject constructor(
         roomId: String,
         userIds: List<String>
     ): Either<NetworkError<ChatServerError.AddParticipants>, ChatRoomDto> =
-        safeCall(networkJson) {
+        safeCall(networkJson, ChatServerError.AddParticipants) {
             networkApi.addParticipantsToGroup(
                 roomId = roomId,
                 request = AddChatParticipantRequest(userIds = userIds)
@@ -141,8 +141,8 @@ internal class RetrofitChatNetwork @Inject constructor(
         }
 
     override suspend fun leaveChatRoom(roomId: String): Either<NetworkError<ChatServerError.LeaveRoom>, Unit> =
-        safeCall(networkJson) { networkApi.leaveChatRoom(roomId) }
+        safeCall(networkJson, ChatServerError.LeaveRoom) { networkApi.leaveChatRoom(roomId) }
 
     override suspend fun deleteMessage(messageId: String): Either<NetworkError<ChatServerError.DeleteMessage>, Unit> =
-        safeCall(networkJson) { networkApi.deleteMessage(messageId) }
+        safeCall(networkJson, ChatServerError.DeleteMessage) { networkApi.deleteMessage(messageId) }
 }
