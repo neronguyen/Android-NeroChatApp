@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.neronguyen.chat.core.data.repository.AuthRepository
+import io.github.neronguyenvn.nerochat.contract.validation.EmailValidator
 import io.github.neronguyenvn.nerochat.contract.validation.auth.AuthValidator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,7 +39,7 @@ class RegisterViewModel @Inject constructor(
     private fun register() {
         if (_uiState.value.isLoading) return
 
-        val emailText = emailState.text.toString().trim()
+        val emailText = EmailValidator.normalize(emailState.text.toString())
         val displayNameText = displayNameState.text.toString().trim()
         val passwordText = passwordState.text.toString()
 

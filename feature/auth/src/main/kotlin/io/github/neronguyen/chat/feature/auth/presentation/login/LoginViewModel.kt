@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.neronguyen.chat.core.data.repository.AuthRepository
+import io.github.neronguyenvn.nerochat.contract.validation.EmailValidator
 import io.github.neronguyenvn.nerochat.contract.validation.auth.AuthValidator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +38,7 @@ class LoginViewModel @Inject constructor(
     private fun login() {
         if (_uiState.value.isLoading) return
 
-        val emailText = emailState.text.toString().trim()
+        val emailText = EmailValidator.normalize(emailState.text.toString())
         val passwordText = passwordState.text.toString()
 
         val validationError = AuthValidator.validateLogin(

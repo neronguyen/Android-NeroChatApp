@@ -11,6 +11,7 @@ import io.github.neronguyen.chat.core.data.repository.AuthRepository
 import io.github.neronguyen.chat.core.data.repository.ChatRoomRepository
 import io.github.neronguyen.chat.core.model.AuthState
 import io.github.neronguyen.chat.core.model.User
+import io.github.neronguyenvn.nerochat.contract.validation.EmailValidator
 import io.github.neronguyenvn.nerochat.contract.validation.chat.ChatValidationError
 import io.github.neronguyenvn.nerochat.contract.validation.chat.ChatValidator
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -133,7 +134,7 @@ class NewChatViewModel @Inject constructor(
     private fun searchByEmail() {
         if (_uiState.value.isSearching) return
 
-        val email = emailSearchState.text.toString().trim()
+        val email = EmailValidator.normalize(emailSearchState.text.toString())
         val validationError = ChatValidator.validateSearchEmail(
             email = email,
             currentUserEmail = currentUser?.email,

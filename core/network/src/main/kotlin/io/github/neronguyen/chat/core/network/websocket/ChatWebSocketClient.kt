@@ -38,7 +38,7 @@ internal class ChatWebSocketClient @Inject constructor(
 ) : ChatRealtimeDataSource {
 
     private val json = Json {
-        classDiscriminator = EVENT_TYPE
+        classDiscriminator = WsServerEvent.CLASS_DISCRIMINATOR
         ignoreUnknownKeys = true
     }
 
@@ -153,7 +153,6 @@ internal class ChatWebSocketClient @Inject constructor(
     }
 
     companion object {
-        private const val EVENT_TYPE = "type"
         private const val NORMAL_CLOSURE_STATUS = 1000
     }
 }

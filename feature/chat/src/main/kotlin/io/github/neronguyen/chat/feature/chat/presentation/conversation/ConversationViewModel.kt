@@ -17,6 +17,7 @@ import io.github.neronguyen.chat.core.model.User
 import io.github.neronguyen.chat.core.model.error.ChatError
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.feature.chat.presentation.newchat.toParticipantUiModel
+import io.github.neronguyenvn.nerochat.contract.validation.EmailValidator
 import io.github.neronguyenvn.nerochat.contract.validation.chat.ChatValidationError
 import io.github.neronguyenvn.nerochat.contract.validation.chat.ChatValidator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -285,7 +286,7 @@ class ConversationViewModel @AssistedInject constructor(
     }
 
     private fun searchParticipantByEmail() {
-        val email = addParticipantEmailState.text.toString().trim()
+        val email = EmailValidator.normalize(addParticipantEmailState.text.toString())
         val current = currentUserFlow.value
         val validationError = ChatValidator.validateSearchEmail(
             email = email,
