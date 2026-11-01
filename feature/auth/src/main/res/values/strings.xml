@@ -37,4 +37,16 @@
     <string name="error_max_attempts_exceeded">Maximum attempts exceeded. Please request a new code.</string>
     <string name="code_resent">Verification code sent</string>
     <string name="verify_email_prompt">Verify email now</string>
+
+    <string name="forgot_password">Forgot password?</string>
+    <string name="forgot_password_title">Forgot Password</string>
+    <string name="forgot_password_instructions">Enter your email address to receive a 6-digit password reset code.</string>
+    <string name="send_reset_code">Send Reset Code</string>
+    <string name="reset_password_title">Reset Password</string>
+    <string name="reset_password_instructions">Enter the 6-digit code sent to %1$s along with your new password.</string>
+    <string name="new_password">New Password</string>
+    <string name="reset_password">Reset Password</string>
+    <string name="password_reset_success">Password reset successfully. Please log in with your new password.</string>
+    <string name="error_same_password">New password cannot be the same as your old password</string>
+    <string name="back_to_login">Back to Login</string>
 </resources>

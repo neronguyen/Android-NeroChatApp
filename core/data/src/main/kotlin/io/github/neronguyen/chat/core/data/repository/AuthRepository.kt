@@ -23,5 +23,13 @@ interface AuthRepository {
 
     suspend fun resendVerification(email: String): Either<DataError, Unit>
 
+    suspend fun forgotPassword(email: String): Either<DataError, Unit>
+
+    suspend fun resetPassword(
+        email: String,
+        code: String,
+        newPassword: String,
+    ): Either<AuthError.ResetPassword, Unit>
+
     suspend fun logout(): Either<DataError, Unit>
 }

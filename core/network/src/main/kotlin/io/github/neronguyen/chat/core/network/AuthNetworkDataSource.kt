@@ -19,5 +19,6 @@ interface AuthNetworkDataSource {
     suspend fun logout(request: RefreshTokenRequest): Either<NetworkError<AuthServerError.Logout>, Unit>
     suspend fun verifyEmail(request: VerifyEmailRequest): Either<NetworkError<AuthServerError.VerifyEmail>, Unit>
     suspend fun resendVerification(request: EmailRequest): Either<NetworkError<Nothing>, Unit>
+    suspend fun forgotPassword(request: EmailRequest): Either<NetworkError<Nothing>, Unit>
     suspend fun resetPassword(request: ResetPasswordRequest): Either<NetworkError<AuthServerError.ResetPassword>, Unit>
 }

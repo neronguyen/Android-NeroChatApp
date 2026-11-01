@@ -13,6 +13,7 @@ sealed interface AuthError {
     data object InvalidOtpCode : VerifyEmail, ResetPassword
     data object OtpExpired : VerifyEmail, ResetPassword
     data object MaxAttemptsExceeded : VerifyEmail, ResetPassword
+    data object SamePassword : ResetPassword
 
     data class Data(val error: DataError) : Login, Register, VerifyEmail, ResetPassword
 }

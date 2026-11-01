@@ -18,8 +18,12 @@ class AuthErrorMapperTest {
         assertEquals(AuthError.EmailNotVerified, AuthServerError.EmailNotVerified.toDomain())
         assertEquals(AuthError.EmailAlreadyInUse, AuthServerError.UserAlreadyExists.toDomain())
         assertEquals(AuthError.InvalidOtpCode, (AuthServerError.InvalidToken as AuthServerError.VerifyEmail).toDomain())
-        assertEquals(AuthError.OtpExpired, AuthServerError.OtpExpired.toDomain())
-        assertEquals(AuthError.MaxAttemptsExceeded, AuthServerError.MaxAttemptsExceeded.toDomain())
+        assertEquals(AuthError.OtpExpired, (AuthServerError.OtpExpired as AuthServerError.VerifyEmail).toDomain())
+        assertEquals(AuthError.MaxAttemptsExceeded, (AuthServerError.MaxAttemptsExceeded as AuthServerError.VerifyEmail).toDomain())
+        assertEquals(AuthError.InvalidOtpCode, (AuthServerError.InvalidToken as AuthServerError.ResetPassword).toDomain())
+        assertEquals(AuthError.OtpExpired, (AuthServerError.OtpExpired as AuthServerError.ResetPassword).toDomain())
+        assertEquals(AuthError.MaxAttemptsExceeded, (AuthServerError.MaxAttemptsExceeded as AuthServerError.ResetPassword).toDomain())
+        assertEquals(AuthError.SamePassword, AuthServerError.SamePassword.toDomain())
         assertEquals(DataError.Remote.Unauthorized, (AuthServerError.InvalidToken as AuthServerError.RefreshToken).toDataError())
         assertEquals(DataError.Remote.Unauthorized, (AuthServerError.InvalidToken as AuthServerError.Logout).toDataError())
         assertEquals(DataError.Remote.Unauthorized, AuthServerError.UserNotFound.toDataError())
@@ -44,6 +48,33 @@ class AuthErrorMapperTest {
             message = "Max attempts exceeded"
         )
         assertEquals(AuthError.MaxAttemptsExceeded, maxAttempts.toVerifyEmailError())
+    }
+
+    @Test
+    fun `Auth resetPassword domain mapping maps business errors correctly`() {
+        val invalidCode: NetworkError<AuthServerError.ResetPassword> = NetworkError.Business(
+            error = AuthServerError.InvalidToken,
+            message = "Invalid token"
+        )
+        assertEquals(AuthError.InvalidOtpCode, invalidCode.toResetPasswordError())
+
+        val expired: NetworkError<AuthServerError.ResetPassword> = NetworkError.Business(
+            error = AuthServerError.OtpExpired,
+            message = "OTP expired"
+        )
+        assertEquals(AuthError.OtpExpired, expired.toResetPasswordError())
+
+        val maxAttempts: NetworkError<AuthServerError.ResetPassword> = NetworkError.Business(
+            error = AuthServerError.MaxAttemptsExceeded,
+            message = "Max attempts exceeded"
+        )
+        assertEquals(AuthError.MaxAttemptsExceeded, maxAttempts.toResetPasswordError())
+
+        val samePassword: NetworkError<AuthServerError.ResetPassword> = NetworkError.Business(
+            error = AuthServerError.SamePassword,
+            message = "Password must be different"
+        )
+        assertEquals(AuthError.SamePassword, samePassword.toResetPasswordError())
     }
 
     @Test

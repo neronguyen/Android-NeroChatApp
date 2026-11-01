@@ -177,6 +177,9 @@ class AuthRepositoryImplTest {
         override suspend fun resendVerification(request: EmailRequest): Either<NetworkError<Nothing>, Unit> =
             Either.Right(Unit)
 
+        override suspend fun forgotPassword(request: EmailRequest): Either<NetworkError<Nothing>, Unit> =
+            Either.Right(Unit)
+
         override suspend fun resetPassword(request: ResetPasswordRequest): Either<NetworkError<AuthServerError.ResetPassword>, Unit> =
             Either.Right(Unit)
     }
@@ -398,6 +401,28 @@ class AuthRepositoryImplTest {
         val repository = createRepository(networkDataSource, tokenDataSource)
 
         val result = repository.resendVerification("test@example.com")
+
+        assertTrue(result.isRight())
+    }
+
+    @Test
+    fun forgotPassword_callsNetworkDataSource() = runTest {
+        val networkDataSource = FakeAuthNetworkDataSource()
+        val tokenDataSource = FakeTokenDataSource()
+        val repository = createRepository(networkDataSource, tokenDataSource)
+
+        val result = repository.forgotPassword("test@example.com")
+
+        assertTrue(result.isRight())
+    }
+
+    @Test
+    fun resetPassword_callsNetworkDataSource() = runTest {
+        val networkDataSource = FakeAuthNetworkDataSource()
+        val tokenDataSource = FakeTokenDataSource()
+        val repository = createRepository(networkDataSource, tokenDataSource)
+
+        val result = repository.resetPassword("test@example.com", "123456", "newPassword123")
 
         assertTrue(result.isRight())
     }

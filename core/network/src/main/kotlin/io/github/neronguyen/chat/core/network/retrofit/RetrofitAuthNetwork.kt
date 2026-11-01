@@ -60,6 +60,11 @@ private interface RetrofitAuthNetworkApi {
         @Body request: EmailRequest
     ): Response<Unit>
 
+    @POST("api/auth/forgot-password")
+    suspend fun forgotPassword(
+        @Body request: EmailRequest
+    ): Response<Unit>
+
     @POST("api/auth/reset-password")
     suspend fun resetPassword(
         @Body request: ResetPasswordRequest
@@ -93,6 +98,9 @@ internal class RetrofitAuthNetwork @Inject constructor(
 
     override suspend fun resendVerification(request: EmailRequest): Either<NetworkError<Nothing>, Unit> =
         safeCallCommon(networkJson) { publicApi.resendVerification(request) }
+
+    override suspend fun forgotPassword(request: EmailRequest): Either<NetworkError<Nothing>, Unit> =
+        safeCallCommon(networkJson) { publicApi.forgotPassword(request) }
 
     override suspend fun resetPassword(request: ResetPasswordRequest): Either<NetworkError<AuthServerError.ResetPassword>, Unit> =
         safeCall(networkJson, AuthServerError.ResetPassword) { publicApi.resetPassword(request) }

@@ -41,6 +41,7 @@ fun LoginRoute(
     onNavigateToRegister: () -> Unit,
     onLoginSuccess: () -> Unit,
     onNavigateToVerifyEmail: (email: String) -> Unit = {},
+    onNavigateToForgotPassword: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -59,6 +60,7 @@ fun LoginRoute(
         onEvent = viewModel::onEvent,
         onNavigateToRegister = onNavigateToRegister,
         onNavigateToVerifyEmail = onNavigateToVerifyEmail,
+        onNavigateToForgotPassword = onNavigateToForgotPassword,
         modifier = modifier
     )
 }
@@ -71,6 +73,7 @@ fun LoginScreen(
     onEvent: (LoginUiEvent) -> Unit,
     onNavigateToRegister: () -> Unit,
     onNavigateToVerifyEmail: (email: String) -> Unit = {},
+    onNavigateToForgotPassword: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val showLoading by rememberMinLoading(isLoading = uiState.isLoading)
@@ -148,6 +151,12 @@ fun LoginScreen(
         }
 
         Spacer(modifier = Modifier.height(12.dp))
+
+        TextButton(onClick = onNavigateToForgotPassword) {
+            Text(stringResource(R.string.forgot_password))
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         TextButton(onClick = onNavigateToRegister) {
             Text(stringResource(R.string.dont_have_account))

@@ -13,10 +13,14 @@ import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import io.github.neronguyen.chat.feature.auth.presentation.forgot.ForgotPasswordRoute
+import io.github.neronguyen.chat.feature.auth.presentation.forgot.ForgotPasswordViewModel
 import io.github.neronguyen.chat.feature.auth.presentation.login.LoginRoute
 import io.github.neronguyen.chat.feature.auth.presentation.login.LoginViewModel
 import io.github.neronguyen.chat.feature.auth.presentation.register.RegisterRoute
 import io.github.neronguyen.chat.feature.auth.presentation.register.RegisterViewModel
+import io.github.neronguyen.chat.feature.auth.presentation.reset.ResetPasswordRoute
+import io.github.neronguyen.chat.feature.auth.presentation.reset.ResetPasswordViewModel
 import io.github.neronguyen.chat.feature.auth.presentation.verify.VerifyEmailRoute
 import io.github.neronguyen.chat.feature.auth.presentation.verify.VerifyEmailViewModel
 
@@ -25,6 +29,8 @@ fun EntryProviderScope<NavKey>.authSection(
     onNavigateToRegister: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onNavigateToVerifyEmail: (email: String) -> Unit,
+    onNavigateToForgotPassword: () -> Unit = {},
+    onNavigateToResetPassword: (email: String) -> Unit = {},
 ) {
     entry<AuthRoute.Login> {
         val viewModel: LoginViewModel = hiltViewModel()
@@ -33,6 +39,7 @@ fun EntryProviderScope<NavKey>.authSection(
             onNavigateToRegister = onNavigateToRegister,
             onLoginSuccess = onAuthSuccess,
             onNavigateToVerifyEmail = onNavigateToVerifyEmail,
+            onNavigateToForgotPassword = onNavigateToForgotPassword,
         )
     }
     entry<AuthRoute.Register> {
@@ -50,6 +57,24 @@ fun EntryProviderScope<NavKey>.authSection(
         VerifyEmailRoute(
             viewModel = viewModel,
             onVerifySuccess = onNavigateToLogin,
+            onNavigateToLogin = onNavigateToLogin,
+        )
+    }
+    entry<AuthRoute.ForgotPassword> {
+        val viewModel: ForgotPasswordViewModel = hiltViewModel()
+        ForgotPasswordRoute(
+            viewModel = viewModel,
+            onNavigateToResetPassword = onNavigateToResetPassword,
+            onNavigateToLogin = onNavigateToLogin,
+        )
+    }
+    entry<AuthRoute.ResetPassword> { route ->
+        val viewModel = hiltViewModel<ResetPasswordViewModel, ResetPasswordViewModel.Factory> { factory ->
+            factory.create(route.email)
+        }
+        ResetPasswordRoute(
+            viewModel = viewModel,
+            onResetSuccess = onNavigateToLogin,
             onNavigateToLogin = onNavigateToLogin,
         )
     }
@@ -75,6 +100,12 @@ fun AuthNavGraph(
                 },
                 onNavigateToVerifyEmail = { email ->
                     backStack.add(AuthRoute.VerifyEmail(email))
+                },
+                onNavigateToForgotPassword = {
+                    backStack.add(AuthRoute.ForgotPassword)
+                },
+                onNavigateToResetPassword = { email ->
+                    backStack.add(AuthRoute.ResetPassword(email))
                 },
             )
         }
