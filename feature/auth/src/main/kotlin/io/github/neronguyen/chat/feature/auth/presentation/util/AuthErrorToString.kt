@@ -11,5 +11,8 @@ fun AuthError.asUiText(): String = when (this) {
     AuthError.InvalidCredentials -> stringResource(R.string.error_invalid_credentials)
     AuthError.EmailNotVerified -> stringResource(R.string.error_email_not_verified)
     AuthError.EmailAlreadyInUse -> stringResource(R.string.error_email_already_in_use)
+    AuthError.InvalidOtpCode -> stringResource(R.string.error_invalid_otp_code)
+    AuthError.OtpExpired -> stringResource(R.string.error_otp_expired)
+    AuthError.MaxAttemptsExceeded -> stringResource(R.string.error_max_attempts_exceeded)
     is AuthError.Data -> error.asUiText()
 }

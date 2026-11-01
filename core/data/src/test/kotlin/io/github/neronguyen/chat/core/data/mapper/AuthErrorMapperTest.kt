@@ -17,9 +17,33 @@ class AuthErrorMapperTest {
         assertEquals(AuthError.InvalidCredentials, AuthServerError.InvalidCredentials.toDomain())
         assertEquals(AuthError.EmailNotVerified, AuthServerError.EmailNotVerified.toDomain())
         assertEquals(AuthError.EmailAlreadyInUse, AuthServerError.UserAlreadyExists.toDomain())
+        assertEquals(AuthError.InvalidOtpCode, (AuthServerError.InvalidToken as AuthServerError.VerifyEmail).toDomain())
+        assertEquals(AuthError.OtpExpired, AuthServerError.OtpExpired.toDomain())
+        assertEquals(AuthError.MaxAttemptsExceeded, AuthServerError.MaxAttemptsExceeded.toDomain())
         assertEquals(DataError.Remote.Unauthorized, (AuthServerError.InvalidToken as AuthServerError.RefreshToken).toDataError())
         assertEquals(DataError.Remote.Unauthorized, (AuthServerError.InvalidToken as AuthServerError.Logout).toDataError())
         assertEquals(DataError.Remote.Unauthorized, AuthServerError.UserNotFound.toDataError())
+    }
+
+    @Test
+    fun `Auth verifyEmail domain mapping maps business errors correctly`() {
+        val invalidCode: NetworkError<AuthServerError.VerifyEmail> = NetworkError.Business(
+            error = AuthServerError.InvalidToken,
+            message = "Invalid token"
+        )
+        assertEquals(AuthError.InvalidOtpCode, invalidCode.toVerifyEmailError())
+
+        val expired: NetworkError<AuthServerError.VerifyEmail> = NetworkError.Business(
+            error = AuthServerError.OtpExpired,
+            message = "OTP expired"
+        )
+        assertEquals(AuthError.OtpExpired, expired.toVerifyEmailError())
+
+        val maxAttempts: NetworkError<AuthServerError.VerifyEmail> = NetworkError.Business(
+            error = AuthServerError.MaxAttemptsExceeded,
+            message = "Max attempts exceeded"
+        )
+        assertEquals(AuthError.MaxAttemptsExceeded, maxAttempts.toVerifyEmailError())
     }
 
     @Test

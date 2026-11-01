@@ -6,6 +6,7 @@ import io.github.neronguyen.chat.core.data.mapper.toDomain
 import io.github.neronguyen.chat.core.data.mapper.toDomainUser
 import io.github.neronguyen.chat.core.data.mapper.toLoginError
 import io.github.neronguyen.chat.core.data.mapper.toRegisterError
+import io.github.neronguyen.chat.core.data.mapper.toVerifyEmailError
 import io.github.neronguyen.chat.core.database.dao.ChatDao
 import io.github.neronguyen.chat.core.datastore.TokenDataSource
 import io.github.neronguyen.chat.core.model.AuthState
@@ -14,9 +15,11 @@ import io.github.neronguyen.chat.core.model.error.AuthError
 import io.github.neronguyen.chat.core.model.error.DataError
 import io.github.neronguyen.chat.core.network.AuthNetworkDataSource
 import io.github.neronguyen.chat.core.network.interceptor.TokenRefresher
+import io.github.neronguyenvn.nerochat.contract.auth.EmailRequest
 import io.github.neronguyenvn.nerochat.contract.auth.LoginRequest
 import io.github.neronguyenvn.nerochat.contract.auth.RefreshTokenRequest
 import io.github.neronguyenvn.nerochat.contract.auth.RegisterRequest
+import io.github.neronguyenvn.nerochat.contract.auth.VerifyEmailRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -66,6 +69,24 @@ internal class AuthRepositoryImpl @Inject constructor(
             ),
         ).mapLeft { it.toRegisterError() }
         .map { userDto -> userDto.toDomain() }
+    }
+
+    override suspend fun verifyEmail(
+        email: String,
+        code: String,
+    ): Either<AuthError.VerifyEmail, Unit> {
+        return networkDataSource.verifyEmail(
+            VerifyEmailRequest(
+                email = email,
+                code = code,
+            ),
+        ).mapLeft { it.toVerifyEmailError() }
+    }
+
+    override suspend fun resendVerification(email: String): Either<DataError, Unit> {
+        return networkDataSource.resendVerification(
+            EmailRequest(email = email),
+        ).mapLeft { it.toDataError() }
     }
 
     override suspend fun logout(): Either<DataError, Unit> {

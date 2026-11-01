@@ -179,6 +179,15 @@ class AccountViewModelTest {
             User("user-1", email, displayName, false)
         )
 
+        override suspend fun verifyEmail(
+            email: String,
+            code: String,
+        ): Either<AuthError.VerifyEmail, Unit> = Either.Right(Unit)
+
+        override suspend fun resendVerification(
+            email: String,
+        ): Either<DataError, Unit> = Either.Right(Unit)
+
         override suspend fun logout(): Either<DataError, Unit> {
             logoutCallCount++
             if (logoutResult.isRight()) {

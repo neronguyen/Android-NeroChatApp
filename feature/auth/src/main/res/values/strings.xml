@@ -24,4 +24,17 @@
     <string name="error_invalid_credentials">Invalid email or password</string>
     <string name="error_email_not_verified">Please verify your email address before logging in</string>
     <string name="error_email_already_in_use">An account with this email already exists</string>
+
+    <string name="verify_email">Verify Email</string>
+    <string name="enter_verification_code">Enter the 6-digit code sent to %1$s</string>
+    <string name="otp_code">Verification Code</string>
+    <string name="verify">Verify</string>
+    <string name="resend_code">Resend Code</string>
+    <string name="resend_cooldown">Resend in %1$ds</string>
+    <string name="error_empty_otp_code">Please enter the 6-digit code</string>
+    <string name="error_invalid_otp_code">Verification code must be 6 digits</string>
+    <string name="error_otp_expired">Verification code has expired. Please request a new one.</string>
+    <string name="error_max_attempts_exceeded">Maximum attempts exceeded. Please request a new code.</string>
+    <string name="code_resent">Verification code sent</string>
+    <string name="verify_email_prompt">Verify email now</string>
 </resources>

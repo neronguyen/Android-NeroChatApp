@@ -14,6 +14,12 @@ internal fun AuthServerError.Register.toDomain(): AuthError.Register = when (thi
     AuthServerError.UserAlreadyExists -> AuthError.EmailAlreadyInUse
 }
 
+internal fun AuthServerError.VerifyEmail.toDomain(): AuthError.VerifyEmail = when (this) {
+    AuthServerError.InvalidToken -> AuthError.InvalidOtpCode
+    AuthServerError.OtpExpired -> AuthError.OtpExpired
+    AuthServerError.MaxAttemptsExceeded -> AuthError.MaxAttemptsExceeded
+}
+
 internal fun AuthServerError.RefreshToken.toDataError(): DataError = when (this) {
     AuthServerError.InvalidToken,
     AuthServerError.UserNotFound -> DataError.Remote.Unauthorized
@@ -28,6 +34,9 @@ internal fun NetworkError<AuthServerError.Login>.toLoginError(): AuthError.Login
 
 internal fun NetworkError<AuthServerError.Register>.toRegisterError(): AuthError.Register =
     toDomainError(AuthError::Data, AuthServerError.Register::toDomain)
+
+internal fun NetworkError<AuthServerError.VerifyEmail>.toVerifyEmailError(): AuthError.VerifyEmail =
+    toDomainError(AuthError::Data, AuthServerError.VerifyEmail::toDomain)
 
 @JvmName("toRefreshTokenDataError")
 internal fun NetworkError<AuthServerError.RefreshToken>.toDataError(): DataError =

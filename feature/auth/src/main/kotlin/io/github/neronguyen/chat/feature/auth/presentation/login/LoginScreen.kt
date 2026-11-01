@@ -29,6 +29,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.neronguyen.chat.core.model.error.AuthError
 import io.github.neronguyen.chat.core.ui.asUiText
 import io.github.neronguyen.chat.core.ui.rememberMinLoading
 import io.github.neronguyen.chat.feature.auth.R
@@ -39,6 +40,7 @@ fun LoginRoute(
     viewModel: LoginViewModel,
     onNavigateToRegister: () -> Unit,
     onLoginSuccess: () -> Unit,
+    onNavigateToVerifyEmail: (email: String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -56,6 +58,7 @@ fun LoginRoute(
         uiState = uiState,
         onEvent = viewModel::onEvent,
         onNavigateToRegister = onNavigateToRegister,
+        onNavigateToVerifyEmail = onNavigateToVerifyEmail,
         modifier = modifier
     )
 }
@@ -67,6 +70,7 @@ fun LoginScreen(
     uiState: LoginUiState,
     onEvent: (LoginUiEvent) -> Unit,
     onNavigateToRegister: () -> Unit,
+    onNavigateToVerifyEmail: (email: String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val showLoading by rememberMinLoading(isLoading = uiState.isLoading)
@@ -117,6 +121,14 @@ fun LoginScreen(
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.alpha(if (activeErrorText != null) 1f else 0f)
         )
+
+        if (uiState.authError == AuthError.EmailNotVerified) {
+            TextButton(
+                onClick = { onNavigateToVerifyEmail(emailState.text.toString().trim()) }
+            ) {
+                Text(stringResource(R.string.verify_email_prompt))
+            }
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
 

@@ -16,10 +16,13 @@ import io.github.neronguyen.chat.core.network.AuthNetworkDataSource
 import io.github.neronguyen.chat.core.network.util.NetworkError
 import io.github.neronguyenvn.nerochat.contract.auth.error.AuthServerError
 import io.github.neronguyenvn.nerochat.contract.auth.AuthenticatedUserDto
+import io.github.neronguyenvn.nerochat.contract.auth.EmailRequest
 import io.github.neronguyenvn.nerochat.contract.auth.LoginRequest
 import io.github.neronguyenvn.nerochat.contract.auth.RefreshTokenRequest
 import io.github.neronguyenvn.nerochat.contract.auth.RegisterRequest
+import io.github.neronguyenvn.nerochat.contract.auth.ResetPasswordRequest
 import io.github.neronguyenvn.nerochat.contract.auth.UserDto
+import io.github.neronguyenvn.nerochat.contract.auth.VerifyEmailRequest
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
@@ -167,6 +170,15 @@ class AuthRepositoryImplTest {
             }
             return Either.Right(Unit)
         }
+
+        override suspend fun verifyEmail(request: VerifyEmailRequest): Either<NetworkError<AuthServerError.VerifyEmail>, Unit> =
+            Either.Right(Unit)
+
+        override suspend fun resendVerification(request: EmailRequest): Either<NetworkError<Nothing>, Unit> =
+            Either.Right(Unit)
+
+        override suspend fun resetPassword(request: ResetPasswordRequest): Either<NetworkError<AuthServerError.ResetPassword>, Unit> =
+            Either.Right(Unit)
     }
 
     @Test
@@ -366,6 +378,28 @@ class AuthRepositoryImplTest {
         // Since logout acquired lock first and cleared data, refresh returns null
         assertNull(refreshResult)
         assertTrue(tokenDataSource.clearCalled)
+    }
+
+    @Test
+    fun verifyEmail_callsNetworkDataSource() = runTest {
+        val networkDataSource = FakeAuthNetworkDataSource()
+        val tokenDataSource = FakeTokenDataSource()
+        val repository = createRepository(networkDataSource, tokenDataSource)
+
+        val result = repository.verifyEmail("test@example.com", "123456")
+
+        assertTrue(result.isRight())
+    }
+
+    @Test
+    fun resendVerification_callsNetworkDataSource() = runTest {
+        val networkDataSource = FakeAuthNetworkDataSource()
+        val tokenDataSource = FakeTokenDataSource()
+        val repository = createRepository(networkDataSource, tokenDataSource)
+
+        val result = repository.resendVerification("test@example.com")
+
+        assertTrue(result.isRight())
     }
 
     @Test

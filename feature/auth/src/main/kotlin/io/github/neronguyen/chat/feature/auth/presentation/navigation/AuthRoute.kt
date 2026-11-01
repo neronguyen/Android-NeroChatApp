@@ -11,4 +11,7 @@ sealed interface AuthRoute : NavKey {
 
     @Serializable
     data object Register : AuthRoute
+
+    @Serializable
+    data class VerifyEmail(val email: String) : AuthRoute
 }

@@ -17,11 +17,14 @@ import io.github.neronguyen.chat.feature.auth.presentation.login.LoginRoute
 import io.github.neronguyen.chat.feature.auth.presentation.login.LoginViewModel
 import io.github.neronguyen.chat.feature.auth.presentation.register.RegisterRoute
 import io.github.neronguyen.chat.feature.auth.presentation.register.RegisterViewModel
+import io.github.neronguyen.chat.feature.auth.presentation.verify.VerifyEmailRoute
+import io.github.neronguyen.chat.feature.auth.presentation.verify.VerifyEmailViewModel
 
 fun EntryProviderScope<NavKey>.authSection(
     onAuthSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
     onNavigateToLogin: () -> Unit,
+    onNavigateToVerifyEmail: (email: String) -> Unit,
 ) {
     entry<AuthRoute.Login> {
         val viewModel: LoginViewModel = hiltViewModel()
@@ -29,6 +32,7 @@ fun EntryProviderScope<NavKey>.authSection(
             viewModel = viewModel,
             onNavigateToRegister = onNavigateToRegister,
             onLoginSuccess = onAuthSuccess,
+            onNavigateToVerifyEmail = onNavigateToVerifyEmail,
         )
     }
     entry<AuthRoute.Register> {
@@ -36,7 +40,17 @@ fun EntryProviderScope<NavKey>.authSection(
         RegisterRoute(
             viewModel = viewModel,
             onNavigateToLogin = onNavigateToLogin,
-            onRegisterSuccess = onNavigateToLogin,
+            onRegisterSuccess = onNavigateToVerifyEmail,
+        )
+    }
+    entry<AuthRoute.VerifyEmail> { route ->
+        val viewModel = hiltViewModel<VerifyEmailViewModel, VerifyEmailViewModel.Factory> { factory ->
+            factory.create(route.email)
+        }
+        VerifyEmailRoute(
+            viewModel = viewModel,
+            onVerifySuccess = onNavigateToLogin,
+            onNavigateToLogin = onNavigateToLogin,
         )
     }
 }
@@ -58,6 +72,9 @@ fun AuthNavGraph(
                 },
                 onNavigateToLogin = {
                     backStack.popOrNavigateTo(AuthRoute.Login)
+                },
+                onNavigateToVerifyEmail = { email ->
+                    backStack.add(AuthRoute.VerifyEmail(email))
                 },
             )
         }
